@@ -214,6 +214,16 @@ async function checkUserSession() {
         showToast(`Masuk otomatis sebagai ${session.user.user_metadata.full_name || session.user.email}`, "success");
         // Sedot data milik user ini dari cloud secara real-time
         await loadUserDataFromServer();
+
+        // === TAMBAHAN SAKTI DI SINI ===
+        // Setelah data selesai disedot, jika user di HP, paksa arahkan ke mainMenu (6 tombol)
+        if (window.innerWidth <= 768) {
+            tab('mainMenu');
+        } else {
+            tab('dashboard');
+        }
+        // ==============================
+
     } else {
         document.getElementById('authPage').classList.remove('hidden');
     }
@@ -221,51 +231,48 @@ async function checkUserSession() {
 
 checkUserSession();
 
-// ====== LOGIKA PERPINDAHAN TAB HALAMAN ======
+// ====== LOGIKA PERPINDAHAN TAB HALAMAN (VERSI FIX 100%) ======
 function tab(id) { 
-    // [Solusi Kebocoran & Klik 2x] Jika sistem otomatis memuat dashboard di HP saat pertama kali login,
-    // kita paksa ubah targetnya menjadi 'mainMenu' secara bersih agar dashboard tidak bocor di bawah.
-    if (id === 'dashboard' && window.innerWidth <= 768 && document.getElementById('floatingBackButton').classList.contains('hidden')) {
-        id = 'mainMenu';
+    // 1. Sembunyikan SEMUA elemen ber-class 'page'
+    document.querySelectorAll('.page').forEach(x => {
+        x.classList.add('hidden');
+    }); 
+
+    // 2. Paksa halaman Menu Utama (6 tombol) agar hilang total jika sedang membuka sub-menu
+    const mainMenuEl = document.getElementById('mainMenu');
+    if (mainMenuEl) {
+        if (id === 'mainMenu') {
+            mainMenuEl.style.setProperty('display', 'block', 'important'); // Tampilkan jika Menu Utama dipilih
+        } else {
+            mainMenuEl.style.setProperty('display', 'none', 'important');  // Hilangkan total jika sub-menu lain dipilih
+        }
     }
 
-    // Sembunyikan SEMUA halaman termasuk halaman Menu Utama Kotak-Kotak ('mainMenu')
-    document.querySelectorAll('.page').forEach(x => x.classList.add('hidden')); 
-    if (document.getElementById('mainMenu')) {
-        document.getElementById('mainMenu').classList.add('hidden');
-    }
-
-    // Tampilkan HANYA halaman yang sedang dipilih/diklik
+    // 3. Tampilkan HANYA halaman target yang dipilih (1x klik langsung jalan!)
     const targetPage = document.getElementById(id);
     if (targetPage) {
         targetPage.classList.remove('hidden'); 
     }
 
-    // Jalankan fungsi riwayat jika tab history dibuka
+    // Jalankan render history jika masuk ke halaman riwayat
     if (id === 'history') {
         renderHistory();
     }
 }
 
-// ====== TAMBAHAN LOGIKA NAVIGASI MENU UTAMA MOBILE ======
-// Fungsi khusus untuk tombol kotak-kotak di Menu Utama HP
+// ====== LOGIKA NAVIGASI MENU UTAMA MOBILE ======
 function bukaSubMenu(idHalaman) {
-    // 1. Sembunyikan menu utama kotak-kotak terlebih dahulu agar tidak ikut tampil di bawah
-    if (document.getElementById('mainMenu')) {
-        document.getElementById('mainMenu').classList.add('hidden');
-    }
-
-    // 2. Panggil fungsi tab untuk memuat halaman yang dipilih
+    // Jalankan fungsi tab untuk membuka sub-menu dan menginstruksikan menu utama agar bersembunyi
     tab(idHalaman); 
     
-    // 3. Munculkan tombol kembali melayang jika diakses lewat layar HP
+    // Munculkan tombol kembali melayang jika diakses lewat layar HP
     if (window.innerWidth <= 768) {
         document.getElementById('floatingBackButton').classList.remove('hidden');
     }
 }
 
-// Fungsi untuk tombol "Kembali ke Menu" melayang di HP
 function kembaliKeMenuUtama() {
+    // Kembali menampilkan menu utama dan otomatis menyembunyikan sub-menu aktif sebelumnya
     tab('mainMenu');
     document.getElementById('floatingBackButton').classList.add('hidden');
 }
