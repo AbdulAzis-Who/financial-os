@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial OS V10 - Fixed</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Masukkan ini di dalam tag <head> -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="authPage" class="auth-container">
+        <div class="auth-box">
+            <h2 class="auth-title">Financial OS <span style="color: #3b82f6;">V10</span></h2>
+            <p class="auth-subtitle">Kelola portofolio asetmu dalam satu tempat terpusat.</p>
+
+            <div id="loginForm" class="auth-form">
+                <h3 style="color: white; margin-bottom: 20px; font-size: 18px;">Masuk ke Akun</h3>
+                <div class="input-group">
+                    <label>Alamat Email</label>
+                    <input type="email" id="loginEmail" placeholder="nama@email.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Kata Sandi</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button onclick="handleLogin()" class="btn-auth">Masuk Sekarang</button>
+                <p class="auth-footer">Belum punya akun? <a href="#" onclick="toggleAuthForm('register')">Daftar di sini</a></p>
+            </div>
+
+            <div id="registerForm" class="auth-form hidden">
+                <h3 style="color: white; margin-bottom: 20px; font-size: 18px;">Buat Akun Baru</h3>
+                <div class="input-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="regName" placeholder="Masukkan nama lengkap" required>
+                </div>
+                <div class="input-group">
+                    <label>Alamat Email</label>
+                    <input type="email" id="regEmail" placeholder="nama@email.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Kata Sandi</label>
+                    <input type="password" id="regPassword" placeholder="Minimal 6 karakter" required>
+                </div>
+                <button onclick="handleRegister()" class="btn-auth">Buat Akun</button>
+                <p class="auth-footer">Sudah punya akun? <a href="#" onclick="toggleAuthForm('login')">Masuk di sini</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <h2>Financial OS V10</h2>
+        <button onclick="tab('dashboard')">Dashboard</button>
+        <button onclick="tab('crypto')">Crypto</button>
+        <button onclick="tab('stocks')">Saham</button>
+        <button onclick="tab('metals')">Logam Mulia</button>
+        <button onclick="tab('cash')">Modal</button>
+        <button onclick="tab('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);">📜 Riwayat</button>
+    </div>
+
+    <div class="main">
+        <section id="dashboard" class="page">
+            <div class="cards">
+                <div class="card"><small>Total Asset</small><h2 id="totalAsset">Rp0</h2></div>
+                <div class="card"><small>Target</small><h2 id="goalPct">0%</h2></div>
+                <div class="card"><small>Modal Bersih</small><h2 id="netCash">Rp0</h2></div>
+            </div>
+
+            <div class="card">
+                <input id="goalInput" type="number" placeholder="Target kekayaan (IDR)">
+                <button onclick="setGoal()">Set Target</button>
+                <div class="progress"><div id="bar"></div></div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3>Alokasi Aset</h3>
+                    <canvas id="pie"></canvas>
+                </div>
+                <div class="card">
+                    <h3>Pertumbuhan Ekuitas</h3>
+                    <canvas id="equity"></canvas>
+                    <div style="text-align: center; margin-top: 10px;">
+                        <button onclick="snapshotEquity()" style="width: auto; padding: 6px 15px; font-size: 12px; background: #3b82f6; color: white;">Simpan Snapshot Harian</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="crypto" class="page hidden">
+            <h3>Manajemen Aset Crypto</h3>
+            <div class="card-form">
+                <input id="coinSearch" placeholder="Cari koin (cth: bitcoin, solana)...">
+                <div id="coinSuggest" class="suggestions"></div>
+                <input id="coinId" placeholder="Coin ID (otomatis)" readonly>
+                <input id="coinQty" type="number" step="any" placeholder="Jumlah koin (Qty)">
+                <input id="coinEntry" type="number" step="any" placeholder="Total modal beli">
+                <select id="coinCur">
+                    <option value="idr">IDR</option>
+                    <option value="usd">USD</option>
+                </select>
+                <button onclick="addCrypto()">Tambah Aset</button>
+            </div>
+            <div id="cryptoList" class="asset-list"></div>
+        </section>
+
+        <section id="stocks" class="page hidden">
+            <h3>Manajemen Aset Saham IDX / US</h3>
+            <div class="card-form">
+                <input id="stockTicker" placeholder="Ticker Saham (cth: BBRI.JK, AAPL)">
+                <input id="stockQty" type="number" step="any" placeholder="Jumlah Lot (1 Lot = 100 lbr)">
+                <input id="stockEntry" type="number" step="any" placeholder="Harga beli per lembar">
+                <button onclick="addStock()">Tambah Aset</button>
+            </div>
+            <div id="stockList" class="asset-list"></div>
+        </section>
+
+        <section id="metals" class="page hidden">
+            <h3>Manajemen Aset Logam Mulia</h3>
+            <div class="card-form">
+                <select id="metalType">
+                    <option value="gold">Emas (Gold)</option>
+                    <option value="silver">Perak (Silver)</option>
+                </select>
+                <input id="metalGram" type="number" step="any" placeholder="Berat (Gram)">
+                <input id="metalEntry" type="number" step="any" placeholder="Harga beli per gram (IDR)">
+                <button onclick="addMetal()">Tambah Aset</button>
+            </div>
+            <div id="metalList" class="asset-list" style="margin-top: 20px;"></div>
+        </section>
+
+        <section id="cash" class="page hidden">
+            <h3>Pencatatan Aliran Modal Awal</h3>
+            <div class="card-form">
+                <select id="cashType">
+                    <option value="in">Modal Masuk (Deposit)</option>
+                    <option value="out">Modal Keluar (Withdraw)</option>
+                </select>
+                <input id="cashValue" type="number" placeholder="Nominal Rupiah (IDR)">
+                <button onclick="addCash()">Tambah Catatan</button>
+            </div>
+            <div id="cashList" class="asset-list"></div>
+        </section>
+
+        <section id="history" class="page hidden">
+            <h3>Jurnal & Riwayat Transaksi Global</h3>
+            <div class="card" style="overflow-x: auto; margin-top: 20px; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(10px);">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid rgba(255,255,255,0.1); color: #9ca3af;">
+                            <th style="padding: 12px;">Tanggal</th>
+                            <th style="padding: 12px;">Kategori</th>
+                            <th style="padding: 12px;">Aset/Ticker</th>
+                            <th style="padding: 12px;">Aksi</th>
+                            <th style="padding: 12px;">Jumlah (Qty)</th>
+                            <th style="padding: 12px;">Harga Satuan</th>
+                            <th style="padding: 12px;">Total Transaksi</th>
+                            <th style="padding: 12px;">Kelola</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+    <div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+</body>
+</html>

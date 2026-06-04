@@ -1,0 +1,166 @@
+body{margin:0;background:#08111f;color:white;font-family:Arial,sans-serif;display:flex}
+.sidebar{width:220px;background:#111827;padding:20px;min-height:100vh;box-sizing:border-box}
+.sidebar h2{font-size:18px;margin-bottom:25px;color:#3b82f6;text-align:center}
+.sidebar button,button{width:100%;padding:11px;margin:6px 0;border:none;border-radius:10px;background:#1f2937;color:white;font-weight:bold;cursor:pointer;transition:background 0.2s}
+.sidebar button:hover,button:hover{background:#374151}
+.main{flex:1;padding:25px;box-sizing:border-box;max-width:calc(100% - 220px)}
+h3{margin-top:0;border-left:4px solid #3b82f6;padding-left:10px;margin-bottom:20px}
+.cards,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:15px;margin-bottom:15px}
+.card{background:rgba(255,255,255,.05);padding:18px;border-radius:14px;box-sizing:border-box;border:1px solid rgba(255,255,255,.03)}
+.card h3{font-size:14px;border:none;padding:0;margin-bottom:10px;color:#9ca3af}
+.card-form{background:rgba(255,255,255,.03);padding:20px;border-radius:14px;margin-bottom:20px;border:1px dashed rgba(255,255,255,.1)}
+.asset-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;margin-top:15px}
+.item {
+    /* Efek Kaca Semi-Transparan */
+    background: rgba(30, 41, 59, 0.45); 
+    
+    /* Efek Blur Latar Belakang (Glassmorphism) */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    
+    /* Border Tipis Menyala Ringan */
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    
+    padding: 16px;
+    margin-bottom: 15px;
+    
+    /* Efek Bayangan Halus untuk Kedalaman Visual */
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    
+    /* Transisi Halus untuk Persiapan Efek Hover Nanti */
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+/* Efek Interaktif Saat Kursor Mendekati Kartu */
+.item:hover {
+    /* Membuat kartu sedikit terangkat ke atas sejauh 4 pixel */
+    transform: translateY(-4px);
+    
+    /* Memperkuat border tipis agar sedikit lebih menyala */
+    border-color: rgba(255, 255, 255, 0.2);
+    
+    /* Menambahkan efek pancaran cahaya (Glow) biru redup yang elegan di sekeliling kartu */
+    box-shadow: 0 10px 40px rgba(59, 130, 246, 0.25);
+}
+.btn-edit{background:#d97706}.btn-edit:hover{background:#b45309}
+.btn-del{background:#dc2626}.btn-del:hover{background:#b91c1c}
+.hidden{display:none}
+input,select{padding:10px;border:1px solid #374151;border-radius:10px;margin:6px 0;background:#111827;color:white;width:100%;box-sizing:border-box}
+input:focus,select:focus{border-color:#3b82f6;outline:none}
+/* Wadah Progress Bar Premium */
+.progress {
+    height: 16px;
+    background: rgba(31, 41, 55, 0.6);
+    border-radius: 20px;
+    overflow: hidden;
+    margin-top: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* Memberikan efek bayangan ke dalam agar terlihat punya kedalaman */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Batang Progress Bar dengan Animasi Gradasi Mengalir & Efek Glow */
+#bar {
+    height: 100%;
+    width: 0;
+    /* Membuat ruang gradasi menjadi lebih lebar (200%) agar bisa digeser/digerakkan */
+    background: linear-gradient(90deg, #22c55e, #3b82f6, #ec4899, #22c55e);
+    background-size: 200% 100%;
+    
+    /* Memicu animasi bernama 'flowGradient' berjalan terus-menerus selama 4 detik secara smooth */
+    animation: flowGradient 4s linear infinite;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Efek kilauan cahaya redup di sepanjang bar */
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+/* Logika Pergerakan Posisi Gradasi Warna */
+@keyframes flowGradient {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+.green{color:#22c55e;font-weight:bold}.red{color:#ef4444;font-weight:bold}
+.suggestions{background:#111827;border:1px solid #374151;border-radius:10px;max-height:150px;overflow-y:auto;position:absolute;z-index:100;width:calc(100% - 80px)}
+.suggestions div{padding:8px 12px;cursor:pointer}
+.suggestions div:hover{background:#1f2937}
+@media (max-width: 768px){
+    body{flex-direction:column}
+    .sidebar{width:100%;min-height:auto}
+    .main{max-width:100%}
+}
+/* Desain Kartu Notifikasi Toast Glassmorphism */
+.toast {
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    /* Animasi muncul dari kanan ke kiri */
+    animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    transition: all 0.3s ease;
+}
+
+/* Variasi Warna Toast */
+.toast-success { border-left: 4px solid #22c55e; }
+.toast-error { border-left: 4px solid #ef4444; }
+.toast-info { border-left: 4px solid #3b82f6; }
+
+/* Animasi Slide-In */
+@keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Animasi Keluar (Pudar) */
+.toast-fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+/* ==================== GAYA HALAMAN LOGIN & REGISTER GLOBAL ==================== */
+.auth-container {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #0f172a; /* Warna dark mode solid */
+    display: flex; justify-content: center; align-items: center;
+    z-index: 9999; /* Menutupi semua elemen dashboard sebelum login */
+}
+.auth-box {
+    background: #1e293b;
+    padding: 40px;
+    border-radius: 12px;
+    width: 100%; max-width: 400px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.auth-title { text-align: center; color: white; margin-bottom: 5px; font-size: 24px; font-weight: bold; }
+.auth-subtitle { text-align: center; color: #9ca3af; font-size: 13px; margin-bottom: 30px; line-height: 1.4; }
+.input-group { margin-bottom: 18px; display: flex; flex-direction: column; }
+.input-group label { color: #d1d5db; font-size: 13px; margin-bottom: 6px; font-weight: 500; text-align: left; }
+.input-group input {
+    background: #0f172a; border: 1px solid #334155; padding: 10px 12px;
+    border-radius: 6px; color: white; font-size: 14px; outline: none; transition: 0.2s;
+}
+.input-group input:focus { border-color: #3b82f6; }
+.btn-auth {
+    width: 100%; padding: 12px; background: #3b82f6; color: white; border: none;
+    border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px;
+}
+.btn-auth:hover { background: #2563eb; }
+.auth-footer { text-align: center; color: #9ca3af; font-size: 13px; margin-top: 20px; }
+.auth-footer a { color: #3b82f6; text-decoration: none; font-weight: 500; }
+.auth-footer a:hover { text-decoration: underline; }
+.hidden {
+    display: none !important;
+}
