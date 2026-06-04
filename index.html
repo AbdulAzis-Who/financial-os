@@ -49,15 +49,32 @@
         </div>
     </div>
 
+    <!-- 1. Menu Navigasi Sidebar (Bawaanmu, sekarang otomatis disembunyikan saat di HP) -->
     <div class="sidebar">
         <h2>Financial OS V10</h2>
-        <button onclick="tab('dashboard')">Dashboard</button>
-        <button onclick="tab('crypto')">Crypto</button>
-        <button onclick="tab('stocks')">Saham</button>
-        <button onclick="tab('metals')">Logam Mulia</button>
-        <button onclick="tab('cash')">Modal</button>
-        <button onclick="tab('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);">📜 Riwayat</button>
+        <button onclick="bukaSubMenu('dashboard')">Dashboard</button>
+        <button onclick="bukaSubMenu('crypto')">Crypto</button>
+        <button onclick="bukaSubMenu('stocks')">Saham</button>
+        <button onclick="bukaSubMenu('metals')">Logam Mulia</button>
+        <button onclick="bukaSubMenu('cash')">Modal</button>
+        <button onclick="bukaSubMenu('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);">📜 Riwayat</button>
     </div>
+
+    <!-- 2. TAMBAHAN BARU: Halaman Menu Utama Grid (Muncul Pertama Kali khusus di HP setelah Login) -->
+    <div id="mainMenu" class="page hidden mobile-menu-only">
+        <h2 class="menu-title">Financial OS V10</h2>
+        <div class="menu-grid">
+            <div class="menu-box" onclick="bukaSubMenu('dashboard')"><span class="menu-icon">📊</span> Dashboard</div>
+            <div class="menu-box" onclick="bukaSubMenu('crypto')"><span class="menu-icon">🪙</span> Crypto</div>
+            <div class="menu-box" onclick="bukaSubMenu('stocks')"><span class="menu-icon">📈</span> Saham</div>
+            <div class="menu-box" onclick="bukaSubMenu('metals')"><span class="menu-icon">✨</span> Logam Mulia</div>
+            <div class="menu-box" onclick="bukaSubMenu('cash')"><span class="menu-icon">💰</span> Modal</div>
+            <div class="menu-box" onclick="bukaSubMenu('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white;"><span class="menu-icon">📜</span> Riwayat</div>
+        </div>
+    </div>
+
+    <!-- 3. TAMBAHAN BARU: Tombol Kembali Melayang (Floating Back Button) khusus di HP -->
+    <button id="floatingBackButton" class="hidden" onclick="kembaliKeMenuUtama()">← Kembali ke Menu</button>
 
     <div class="main">
         <section id="dashboard" class="page">

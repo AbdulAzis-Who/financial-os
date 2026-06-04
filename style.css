@@ -209,3 +209,83 @@ input:focus,select:focus{border-color:#3b82f6;outline:none}
         padding: 12px !important;
     }
 }
+
+/* ==================== 🎛️ DESAIN UTAMA GRID MENU MOBILE ==================== */
+.mobile-menu-only {
+    display: none; /* Default sembunyikan di laptop, hanya aktif di HP */
+}
+
+/* Tombol Back Melayang di HP */
+#floatingBackButton {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 12px 24px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+    /* Sembunyikan sidebar bawaan agar tidak memenuhi layar HP atas */
+    .sidebar {
+        display: none !important;
+    }
+
+    /* Aktifkan Halaman Menu Utama di HP */
+    .mobile-menu-only {
+        display: block !important;
+    }
+
+    .menu-title {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #fff;
+        font-size: 24px;
+    }
+
+    /* Membuat Grid Susunan Kotak Menu 2 Kolom */
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        padding: 10px;
+    }
+
+    /* Desain Kotak Menu ala Aplikasi Premium */
+    .menu-box {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 25px 15px;
+        text-align: center;
+        color: #f8fafc;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+
+    .menu-box:active {
+        transform: scale(0.95); /* Efek membal saat ditekan jempol */
+        background: #334155;
+    }
+
+    .menu-icon {
+        font-size: 28px;
+    }
+}

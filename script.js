@@ -223,6 +223,12 @@ checkUserSession();
 
 // ====== LOGIKA PERPINDAHAN TAB HALAMAN ======
 function tab(id) { 
+    // [Trik Mobile] Jika sistem mencoba membuka dashboard di HP saat pertama kali,
+    // kita belokkan paksa jalurnya ke halaman mainMenu kotak-kotak.
+    if (id === 'dashboard' && window.innerWidth <= 768 && document.getElementById('floatingBackButton').classList.contains('hidden')) {
+        id = 'mainMenu';
+    }
+
     document.querySelectorAll('.page').forEach(x => x.classList.add('hidden')); 
     const targetPage = document.getElementById(id);
     if (targetPage) {
@@ -231,6 +237,23 @@ function tab(id) {
     if (id === 'history') {
         renderHistory();
     }
+}
+
+// ====== TAMBAHAN LOGIKA NAVIGASI MENU UTAMA MOBILE ======
+// Fungsi khusus untuk tombol kotak-kokak di Menu Utama HP
+function bukaSubMenu(idHalaman) {
+    tab(idHalaman); 
+    
+    // Munculkan tombol kembali melayang jika diakses lewat layar HP
+    if (window.innerWidth <= 768) {
+        document.getElementById('floatingBackButton').classList.remove('hidden');
+    }
+}
+
+// Fungsi untuk tombol "Kembali ke Menu" melayang di HP
+function kembaliKeMenuUtama() {
+    tab('mainMenu');
+    document.getElementById('floatingBackButton').classList.add('hidden');
 }
 
 // ====== ENGINE UTAMA: MENGHITUNG SALDO & MODAL DARI LEDGER TRANSACTION ======
@@ -996,4 +1019,20 @@ function showToast(message, type = 'success') {
         toast.classList.add('toast-fade-out');
         setTimeout(() => { toast.remove(); }, 300);
     }, 3000);
+}
+
+// Fungsi untuk membuka sub-menu dari menu utama HP
+function bukaSubMenu(idHalaman) {
+    tab(idHalaman); // Memanggil fungsi tab asli bawaan kodinganmu
+    
+    // Jika diakses lewat HP, munculkan tombol back melayang
+    if (window.innerWidth <= 768) {
+        document.getElementById('floatingBackButton').classList.remove('hidden');
+    }
+}
+
+// Fungsi untuk kembali ke menu utama kotak-kotak di HP
+function kembaliKeMenuUtama() {
+    tab('mainMenu');
+    document.getElementById('floatingBackButton').classList.add('hidden');
 }
