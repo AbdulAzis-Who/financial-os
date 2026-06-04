@@ -223,28 +223,42 @@ checkUserSession();
 
 // ====== LOGIKA PERPINDAHAN TAB HALAMAN ======
 function tab(id) { 
-    // [Trik Mobile] Jika sistem mencoba membuka dashboard di HP saat pertama kali,
-    // kita belokkan paksa jalurnya ke halaman mainMenu kotak-kotak.
+    // [Solusi Kebocoran & Klik 2x] Jika sistem otomatis memuat dashboard di HP saat pertama kali login,
+    // kita paksa ubah targetnya menjadi 'mainMenu' secara bersih agar dashboard tidak bocor di bawah.
     if (id === 'dashboard' && window.innerWidth <= 768 && document.getElementById('floatingBackButton').classList.contains('hidden')) {
         id = 'mainMenu';
     }
 
+    // Sembunyikan SEMUA halaman termasuk halaman Menu Utama Kotak-Kotak ('mainMenu')
     document.querySelectorAll('.page').forEach(x => x.classList.add('hidden')); 
+    if (document.getElementById('mainMenu')) {
+        document.getElementById('mainMenu').classList.add('hidden');
+    }
+
+    // Tampilkan HANYA halaman yang sedang dipilih/diklik
     const targetPage = document.getElementById(id);
     if (targetPage) {
         targetPage.classList.remove('hidden'); 
     }
+
+    // Jalankan fungsi riwayat jika tab history dibuka
     if (id === 'history') {
         renderHistory();
     }
 }
 
 // ====== TAMBAHAN LOGIKA NAVIGASI MENU UTAMA MOBILE ======
-// Fungsi khusus untuk tombol kotak-kokak di Menu Utama HP
+// Fungsi khusus untuk tombol kotak-kotak di Menu Utama HP
 function bukaSubMenu(idHalaman) {
+    // 1. Sembunyikan menu utama kotak-kotak terlebih dahulu agar tidak ikut tampil di bawah
+    if (document.getElementById('mainMenu')) {
+        document.getElementById('mainMenu').classList.add('hidden');
+    }
+
+    // 2. Panggil fungsi tab untuk memuat halaman yang dipilih
     tab(idHalaman); 
     
-    // Munculkan tombol kembali melayang jika diakses lewat layar HP
+    // 3. Munculkan tombol kembali melayang jika diakses lewat layar HP
     if (window.innerWidth <= 768) {
         document.getElementById('floatingBackButton').classList.remove('hidden');
     }
