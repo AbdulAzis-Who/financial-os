@@ -164,3 +164,48 @@ input:focus,select:focus{border-color:#3b82f6;outline:none}
 .hidden {
     display: none !important;
 }
+
+/* ==================== 📱 OPTIMASI TAMPILAN KHUSUS HP (MOBILE) ==================== */
+@media (max-width: 768px) {
+    /* 1. Mengubah daftar kumpulan aset menjadi kartu yang bisa digeser ke samping */
+    #cryptoList, #stockList, #metalList {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        scroll-snap-type: x mandatory;
+        gap: 12px;
+        padding-bottom: 10px;
+        /* Menyembunyikan scrollbar bawaan browser agar estetik */
+        scrollbar-width: none; 
+    }
+    
+    #cryptoList::-webkit-scrollbar, 
+    #stockList::-webkit-scrollbar, 
+    #metalList::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* 2. Menyesuaikan ukuran kartu aset agar pas di layar HP saat digeser */
+    #cryptoList .item, #stockList .item, #metalList .item {
+        flex: 0 0 85% !important; /* Kartu memakan 85% lebar layar HP, sisa 15% untuk intipan kartu berikutnya */
+        scroll-snap-align: start;
+        margin-bottom: 0 !important;
+    }
+
+    /* 3. Merapikan tabel riwayat agar tidak merusak lebar layar (bisa di-scroll internal) */
+    .page table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /* 4. Optimasi ukuran text dashboard atas agar pas dalam satu genggaman */
+    #totalAsset {
+        font-size: 2rem !important;
+    }
+    
+    /* 5. Memberi ruang napas di sisi kanan kiri layar HP */
+    body {
+        padding: 12px !important;
+    }
+}
