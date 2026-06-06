@@ -736,6 +736,13 @@ function render() {
         }).join('');
     }
 
+// === 🚪 GERBANG DARURAT (TARUH DI SINI, DI ATAS CASH LIST) ===
+    // Jika user sudah log out (layar login terbuka), langsung STOP fungsi ini biar tidak error!
+    const authPage = document.getElementById('authPage');
+    if (authPage && !authPage.classList.contains('hidden')) {
+        return; 
+    }
+
     const cashList = document.getElementById('cashList');
     if (cashList) {
         cashList.innerHTML = db.cash.map((x, i) => {
@@ -755,15 +762,21 @@ function render() {
     let currentAssetVal = totalAssetEl ? parseFloat(totalAssetEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
     let currentCashVal = netCashEl ? parseFloat(netCashEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
 
-    animateCount(totalAssetEl, currentAssetVal, total, 1000, true);
+    // 1. PERUBAHAN: Sekarang dibungkus 'if' agar tidak error saat log out
+    if (totalAssetEl) {
+        animateCount(totalAssetEl, currentAssetVal, total, 1000, true);
+    }
 
-// === 💎 TAMBAHAN SAKTI KHUSUS UNTUK HP (SINKRONISASI REAL-TIME) ===
+    // === 💎 TAMBAHAN SAKTI DENGAN PENGAMAN (SUDAH BENAR) ===
     const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
-    if (mobileTotalAssetEl) {
+    if (mobileTotalAssetEl && totalAssetEl) {
         animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
     }
 
-    animateCount(netCashEl, currentCashVal, modal, 1000, true);
+    // 2. PERUBAHAN: Sekarang dibungkus 'if' agar tidak error saat log out
+    if (netCashEl) {
+        animateCount(netCashEl, currentCashVal, modal, 1000, true);
+    }
 
     let pct = db.goal ? Math.min(100, total / db.goal * 100) : 0;
     if (goalPctEl) {
@@ -1065,29 +1078,24 @@ function kembaliKeMenuUtama() {
     document.getElementById('floatingBackButton').classList.add('hidden');
 }
 
-// ====== FUNGSI LOG OUT / KELUAR AKUN ======
+// ====== FUNGSI LOG OUT / KELUAR AKUN (VERSI ANTI-ERROR) ======
 async function handleLogout() {
     const konfirmasi = confirm("Apakah kamu yakin ingin keluar dari aplikasi Financial OS?");
     if (!konfirmasi) return;
 
     try {
+        // 1. Jalankan logout di Supabase terlebih dahulu
         const { error } = await supabaseClient.auth.signOut();
         if (error) throw error;
 
-        showToast("Berhasil keluar akun. Sampai jumpa kembali!", "success");
+        // 2. Berikan notifikasi sukses menggunakan alert bawaan browser agar sinkron
+        alert("Berhasil keluar akun. Sampai jumpa kembali!");
         
-        // Sembunyikan tombol kembali melayang jika masih aktif
-        document.getElementById('floatingBackButton').classList.add('hidden');
-        
-    // === 💎 TAMBAHAN SAKTI KHUSUS UNTUK HP (SINKRONISASI REAL-TIME) ===
-    const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
-    if (mobileTotalAssetEl) {
-        animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
-    }    // Kembalikan ke halaman login authPage, dan sembunyikan semua halaman tab
-        document.getElementById('authPage').classList.remove('hidden');
-        document.querySelectorAll('.page').forEach(x => x.classList.add('hidden'));
+        // 3. AMUNISI PAMUNGKAS: Muat ulang halaman secara penuh untuk membersihkan cache & memori
+        // Ini akan otomatis mengembalikan user ke halaman login (authPage) secara bersih tanpa error!
+        window.location.reload();
         
     } catch (error) {
-        showToast(`Gagal keluar: ${error.message}`, "error");
+        alert(`Gagal keluar: ${error.message}`);
     }
 }
