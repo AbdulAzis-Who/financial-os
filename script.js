@@ -756,6 +756,13 @@ function render() {
     let currentCashVal = netCashEl ? parseFloat(netCashEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
 
     animateCount(totalAssetEl, currentAssetVal, total, 1000, true);
+
+// === 💎 TAMBAHAN SAKTI KHUSUS UNTUK HP (SINKRONISASI REAL-TIME) ===
+    const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
+    if (mobileTotalAssetEl) {
+        animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
+    }
+
     animateCount(netCashEl, currentCashVal, modal, 1000, true);
 
     let pct = db.goal ? Math.min(100, total / db.goal * 100) : 0;
@@ -1056,4 +1063,31 @@ function bukaSubMenu(idHalaman) {
 function kembaliKeMenuUtama() {
     tab('mainMenu');
     document.getElementById('floatingBackButton').classList.add('hidden');
+}
+
+// ====== FUNGSI LOG OUT / KELUAR AKUN ======
+async function handleLogout() {
+    const konfirmasi = confirm("Apakah kamu yakin ingin keluar dari aplikasi Financial OS?");
+    if (!konfirmasi) return;
+
+    try {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) throw error;
+
+        showToast("Berhasil keluar akun. Sampai jumpa kembali!", "success");
+        
+        // Sembunyikan tombol kembali melayang jika masih aktif
+        document.getElementById('floatingBackButton').classList.add('hidden');
+        
+    // === 💎 TAMBAHAN SAKTI KHUSUS UNTUK HP (SINKRONISASI REAL-TIME) ===
+    const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
+    if (mobileTotalAssetEl) {
+        animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
+    }    // Kembalikan ke halaman login authPage, dan sembunyikan semua halaman tab
+        document.getElementById('authPage').classList.remove('hidden');
+        document.querySelectorAll('.page').forEach(x => x.classList.add('hidden'));
+        
+    } catch (error) {
+        showToast(`Gagal keluar: ${error.message}`, "error");
+    }
 }

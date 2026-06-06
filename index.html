@@ -6,8 +6,7 @@
     <title>Financial OS V10 - Fixed</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Masukkan ini di dalam tag <head> -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="authPage" class="auth-container">
@@ -49,7 +48,6 @@
         </div>
     </div>
 
-    <!-- 1. Menu Navigasi Sidebar (Bawaanmu, sekarang otomatis disembunyikan saat di HP) -->
     <div class="sidebar">
         <h2>Financial OS V10</h2>
         <button onclick="bukaSubMenu('dashboard')">Dashboard</button>
@@ -60,9 +58,14 @@
         <button onclick="bukaSubMenu('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);">📜 Riwayat</button>
     </div>
 
-    <!-- 2. TAMBAHAN BARU: Halaman Menu Utama Grid (Muncul Pertama Kali khusus di HP setelah Login) -->
-    <div id="mainMenu" class="page hidden mobile-menu-only">
+    <div id="mainMenu" class="page mobile-menu-only hidden">
         <h2 class="menu-title">Financial OS V10</h2>
+        
+        <div class="mobile-summary-card">
+            <small>Total Pantauan Asset (Real-time)</small>
+            <h1 id="mobileTotalAsset">Rp0</h1>
+        </div>
+
         <div class="menu-grid">
             <div class="menu-box" onclick="bukaSubMenu('dashboard')"><span class="menu-icon">📊</span> Dashboard</div>
             <div class="menu-box" onclick="bukaSubMenu('crypto')"><span class="menu-icon">🪙</span> Crypto</div>
@@ -71,13 +74,16 @@
             <div class="menu-box" onclick="bukaSubMenu('cash')"><span class="menu-icon">💰</span> Modal</div>
             <div class="menu-box" onclick="bukaSubMenu('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white;"><span class="menu-icon">📜</span> Riwayat</div>
         </div>
+
+        <div style="text-align: center; margin-top: 30px; padding: 0 10px;">
+            <button onclick="handleLogout()" class="btn-logout-mobile">🚪 Keluar dari Aplikasi</button>
+        </div>
     </div>
 
-    <!-- 3. TAMBAHAN BARU: Tombol Kembali Melayang (Floating Back Button) khusus di HP -->
     <button id="floatingBackButton" class="hidden" onclick="kembaliKeMenuUtama()">← Kembali ke Menu</button>
 
     <div class="main">
-        <section id="dashboard" class="page">
+        <section id="dashboard" class="page hidden">
             <div class="cards">
                 <div class="card"><small>Total Asset</small><h2 id="totalAsset">Rp0</h2></div>
                 <div class="card"><small>Target</small><h2 id="goalPct">0%</h2></div>
