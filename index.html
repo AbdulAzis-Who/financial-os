@@ -10,44 +10,36 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div id="authPage" class="auth-container">
-        <div class="auth-box">
-            <h2 class="auth-title">Financial OS <span style="color: #3b82f6;">V10</span></h2>
-            <p class="auth-subtitle">Kelola portofolio asetmu dalam satu tempat terpusat.</p>
-
-            <div id="loginForm" class="auth-form">
-                <h3 style="color: white; margin-bottom: 20px; font-size: 18px;">Masuk ke Akun</h3>
-                <div class="input-group">
-                    <label>Alamat Email</label>
-                    <input type="email" id="loginEmail" placeholder="nama@email.com" required>
-                </div>
-                <div class="input-group">
-                    <label>Kata Sandi</label>
-                    <input type="password" id="loginPassword" placeholder="••••••••" required>
-                </div>
-                <button onclick="handleLogin()" class="btn-auth">Masuk Sekarang</button>
-                <p class="auth-footer">Belum punya akun? <a href="#" onclick="toggleAuthForm('register')">Daftar di sini</a></p>
+    <<!-- AREA LOGIN TERMINAL CLI EXTREME -->
+<div id="authPage" class="terminal-bg">
+    <div class="terminal-container">
+        <!-- Header Jendela Terminal ala Linux -->
+        <div class="terminal-header">
+            <div class="terminal-buttons">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
             </div>
-
-            <div id="registerForm" class="auth-form hidden">
-                <h3 style="color: white; margin-bottom: 20px; font-size: 18px;">Buat Akun Baru</h3>
-                <div class="input-group">
-                    <label>Nama Lengkap</label>
-                    <input type="text" id="regName" placeholder="Masukkan nama lengkap" required>
-                </div>
-                <div class="input-group">
-                    <label>Alamat Email</label>
-                    <input type="email" id="regEmail" placeholder="nama@email.com" required>
-                </div>
-                <div class="input-group">
-                    <label>Kata Sandi</label>
-                    <input type="password" id="regPassword" placeholder="Minimal 6 karakter" required>
-                </div>
-                <button onclick="handleRegister()" class="btn-auth">Buat Akun</button>
-                <p class="auth-footer">Sudah punya akun? <a href="#" onclick="toggleAuthForm('login')">Masuk di sini</a></p>
+            <div class="terminal-title">root@financial-os: ~</div>
+        </div>
+        
+        <!-- Area Baris Perintah Interaktif -->
+        <div class="terminal-body" id="terminalBody">
+            <div class="line">Financial OS [Version 10.0.2026]</div>
+            <div class="line">System core gateway is secure. Connection encrypted.</div>
+            <div class="line" style="margin-bottom: 15px;">Type <span class="text-blue">help</span> to see available network commands.</div>
+            
+            <!-- Tempat baris perintah baru akan di-render oleh JS -->
+            <div id="terminalHistory"></div>
+            
+            <!-- Baris Input Aktif -->
+            <div class="input-line">
+                <span class="prompt">root@financial-os:~#</span>
+                <input type="text" id="terminalInput" autofocus autocomplete="off" spellcheck="false">
             </div>
         </div>
     </div>
+</div>
 
     <div class="sidebar">
         <h2>Financial OS V10</h2>

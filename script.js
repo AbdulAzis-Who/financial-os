@@ -19,6 +19,16 @@ let db = JSON.parse(localStorage.getItem('fosv10')) || {
 };
 let USDIDR = 16000, pie, equity;
 
+// --- STATE KENDALIAN TERMINAL LOGIN CLI ---
+let authStep = "command"; // Status gerbang: "command" atau "password"
+let tempEmail = "";       // Penampung email sementara saat handshake jaringan
+
+// Variabel instance Chart agar tidak bertabrakan global
+let liveEquityChartInstance = null;
+let historicalEquityChartInstance = null;
+
+if (!db.liveTicks) db.liveTicks = [];
+
 const idr = x => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(x || 0);
 
 function save() { 
@@ -26,25 +36,158 @@ function save() {
     render(); 
 }
 
-// ==================== 🕹️ FUNGSI NAVIGASI FORM AUTH ====================
-function toggleAuthForm(mode) {
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    
-    if (!loginForm || !registerForm) return;
+// ==================== 🕹️ ENGINE INTELIJEN TERMINAL CLI LOGIN ====================
 
-    if (mode === 'register') {
-        loginForm.classList.add('hidden');
-        registerForm.classList.remove('hidden');
-    } else {
-        registerForm.classList.add('hidden');
-        loginForm.classList.remove('hidden');
+// Inisialisasi Event Listener Keyboard Terminal saat DOM selesai dimuat
+document.addEventListener("DOMContentLoaded", () => {
+    const termInput = document.getElementById("terminalInput");
+    if (termInput) {
+        termInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                const value = this.value.trim();
+                if (value) {
+                    executeTerminalLogin(value);
+                    this.value = ""; // Bersihkan baris input setelah Enter
+                }
+            }
+        });
+        
+        // Jaga agar focus tetap berada di input terminal jika user tidak sengaja klik luar area
+        document.addEventListener("click", () => {
+            const authPage = document.getElementById("authPage");
+            if (authPage && !authPage.classList.contains("hidden")) {
+                termInput.focus();
+            }
+        });
     }
+});
+
+async function executeTerminalLogin(input) {
+    const historyContainer = document.getElementById("terminalHistory");
+    if (!historyContainer) return;
+
+    // 1. MODUL STATUS JALUR PASSWORD (ENTRI SANDI SECARA STEALTH)
+    if (authStep === "password") {
+        // Tampilkan bintang samaran di layar agar password tidak terekspos murni
+        const maskedPassword = "*".repeat(input.length);
+        historyContainer.innerHTML += `<div class="line"><span class="prompt">guest@fos_terminal:~$</span> enter password: ${maskedPassword}</div>`;
+        historyContainer.innerHTML += `<div class="line text-yellow">[PING] Handshaking with Supabase Singapore node via SSL...</div>`;
+        historyContainer.scrollTop = historyContainer.scrollHeight;
+
+        try {
+            // Tembak autentikasi cloud langsung ke Supabase API
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: tempEmail,
+                password: input
+            });
+
+            if (error) {
+                historyContainer.innerHTML += `<div class="line text-red">[AUTH_ERROR] Login rejected: ${error.message}</div>`;
+                historyContainer.innerHTML += `<div class="line text-blue">[SYSTEM] Type 'login <email>' or 'register' to retry.</div>`;
+                authStep = "command";
+                tempEmail = "";
+            } else {
+                historyContainer.innerHTML += `<div class="line text-green">[SUCCESS] Access Granted! Deploying Financial OS environment...</div>`;
+                historyContainer.scrollTop = historyContainer.scrollHeight;
+                
+                setTimeout(async () => {
+                    document.getElementById("authPage").classList.add("hidden");
+                    // Sedot data segar cloud secara real-time
+                    await loadUserDataFromServer();
+                }, 1200);
+            }
+        } catch (err) {
+            historyContainer.innerHTML += `<div class="line text-red">[FATAL] Connection timeout. Try again.</div>`;
+            authStep = "command";
+        }
+        historyContainer.scrollTop = historyContainer.scrollHeight;
+        return;
+    }
+
+    // 2. MODUL PARSING KATA PERINTAH (COMMAND LINE INTERPRETER)
+    historyContainer.innerHTML += `<div class="line"><span class="prompt">guest@fos_terminal:~$</span> ${input}</div>`;
+    const parts = input.split(" ");
+    const cmd = parts[0].toLowerCase();
+
+    if (cmd === "clear" || cmd === "cls") {
+        historyContainer.innerHTML = `
+            <div class="line text-blue">==================================================</div>
+            <div class="line text-blue">      FINANCIAL OS [Version 1.0.0] - CLI CORE       </div>
+            <div class="line text-blue">==================================================</div>
+            <div class="line">Type <span class="text-yellow">login [your_email]</span> to authenticate.</div>
+            <div class="line">Type <span class="text-yellow">register</span> to generate a new account node.</div>
+            <div class="line">Type <span class="text-yellow">help</span> to list terminal protocols.</div>
+            <div class="line">&nbsp;</div>
+        `;
+    } 
+    else if (cmd === "help") {
+        historyContainer.innerHTML += `
+            <div class="line text-yellow">Available Security Protocols:</div>
+            <div class="line"> • <span class="text-blue">login [email]</span>  : Initiates cloud synchronization chain</div>
+            <div class="line"> • <span class="text-blue">register</span>       : Allocates a new encrypted profile on Supabase</div>
+            <div class="line"> • <span class="text-blue">clear / cls</span>    : Flushes terminal screen logs</div>
+            <div class="line"> • <span class="text-blue">sysinfo</span>       : Displays core engine build and network data</div>
+        `;
+    } 
+    else if (cmd === "sysinfo") {
+        historyContainer.innerHTML += `
+            <div class="line">--------------------------------------------------</div>
+            <div class="line">OS Core Version : Financial OS v1.0.0 Stable Build</div>
+            <div class="line">Subsystem Engine: Debian CLI Base Mode</div>
+            <div class="line">Cloud Provider  : Supabase Cloud (Singapore Regions)</div>
+            <div class="line">Network Protocol: HTTPS / SSL TLS v1.3 Secured</div>
+            <div class="line">Status Gateway  : ONLINE (Client Connected)</div>
+            <div class="line">--------------------------------------------------</div>
+        `;
+    } 
+    else if (cmd === "login") {
+        if (!parts[1]) {
+            historyContainer.innerHTML += `<div class="line text-red">[ERR] Syntax invalid. Usage: login your_email@domain.com</div>`;
+        } else {
+            tempEmail = parts[1];
+            authStep = "password";
+            historyContainer.innerHTML += `<div class="line text-blue">[SYSTEM] Target account verified: ${tempEmail}</div>`;
+            historyContainer.innerHTML += `<div class="line">Please enter account decryption password below.</div>`;
+        }
+    } 
+    else if (cmd === "register") {
+        const name = prompt("Enter your Full Name for cloud node identity:");
+        const email = prompt("Enter your Email Address for account database alignment:");
+        const password = prompt("Enter secure Password (min 6 characters):");
+
+        if (!name || !email || !password) {
+            historyContainer.innerHTML += `<div class="line text-red">[ERR] Operation aborted. All registration payloads are mandatory.</div>`;
+        } else if (password.length < 6) {
+            historyContainer.innerHTML += `<div class="line text-red">[ERR] Operational failure. Password strength must be >= 6 characters.</div>`;
+        } else {
+            historyContainer.innerHTML += `<div class="line text-yellow">[INJECTING] Dispatching database node record request to cloud...</div>`;
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: { data: { full_name: name } }
+                });
+
+                if (error) {
+                    historyContainer.innerHTML += `<div class="line text-red">[REG_FAILED] Supabase rejected entity: ${error.message}</div>`;
+                } else {
+                    historyContainer.innerHTML += `<div class="line text-green">[SUCCESS] Account registration deployment complete! Node activated.</div>`;
+                    historyContainer.innerHTML += `<div class="line text-blue">[SYSTEM] You can now proceed to type 'login ${email}'</div>`;
+                }
+            } catch (err) {
+                historyContainer.innerHTML += `<div class="line text-red">[FATAL] Jaringan terputus dari server master.</div>`;
+            }
+        }
+    } 
+    else {
+        historyContainer.innerHTML += `<div class="line text-red">bash: command not found: ${cmd}. Type 'help' for terminal instructions.</div>`;
+    }
+    historyContainer.scrollTop = historyContainer.scrollHeight;
 }
 
 // ==================== 🕹️ FUNGSI AUTHENTICATION & SYNC (CLOUD) ====================
 
-// 1. Fungsi Ambil Data dari Server Supabase Terpusat (PULL DATA)
+// Fungsi Ambil Data dari Server Supabase Terpusat (PULL DATA)
 async function loadUserDataFromServer() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -130,100 +273,34 @@ async function loadUserDataFromServer() {
         await loadEquityHistory();
 
     } catch (err) {
-        // Meredam eror merah CORS (null) agar tidak mengotori console saat internet berkedip/RTO
         console.log("[Supabase Catch] Koneksi database cloud tertunda karena kendala jaringan. Aplikasi beralih ke cache lokal.");
-        
-        // Tetap jalankan kalkulator lokal agar data yang sudah ada di layar tidak hilang atau menjadi 0
         try {
             processLedger();
             render();
         } catch (e) {
             console.log("[Fallback Render] Gagal menggambar ulang layar.");
         }
-        
-        // Memunculkan toast peringatan yang rapi untuk user tanpa memicu eror sistem merah
         if (typeof showToast === "function") {
             showToast("Koneksi tidak stabil, menampilkan data terakhir", "warning");
         }
     }
 }
 
-// 2. Fungsi Registrasi Akun Baru
-async function handleRegister() {
-    const name = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const password = document.getElementById('regPassword').value;
-
-    if (!name || !email || !password) {
-        showToast("Semua kolom registrasi wajib diisi!", "error");
-        return;
-    }
-    if (password.length < 6) {
-        showToast("Kata sandi minimal harus 6 karakter!", "error");
-        return;
-    }
-
-    showToast("Sedang memproses pendaftaran...", "info");
-
-    const { data, error } = await supabaseClient.auth.signUp({
-        email: email,
-        password: password,
-        options: { data: { full_name: name } }
-    });
-
-    if (error) {
-        showToast("Gagal mendaftar: " + error.message, "error");
-    } else {
-        showToast("Pendaftaran berhasil! Akun Anda langsung aktif.", "success");
-        toggleAuthForm('login');
-    }
-}
-
-// 3. Fungsi Login Akun
-async function handleLogin() {
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-
-    if (!email || !password) {
-        showToast("Email dan kata sandi tidak boleh kosong!", "error");
-        return;
-    }
-
-    showToast("Sedang memverifikasi akun...", "info");
-
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-    });
-
-    if (error) {
-        showToast("Gagal masuk: " + error.message, "error");
-    } else {
-        showToast("Selamat datang kembali! Memuat dasbor...", "success");
-        document.getElementById('authPage').classList.add('hidden');
-        // Langsung sedot data dari cloud setelah login sukses
-        await loadUserDataFromServer();
-    }
-}
-
-// 4. Cek Status Sesi Otomatis Saat Aplikasi Dibuka
+// Cek Status Sesi Otomatis Saat Aplikasi Dibuka
 async function checkUserSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     
     if (session) {
         document.getElementById('authPage').classList.add('hidden');
         showToast(`Masuk otomatis sebagai ${session.user.user_metadata.full_name || session.user.email}`, "success");
-        // Sedot data milik user ini dari cloud secara real-time
         await loadUserDataFromServer();
 
-        // === TAMBAHAN SAKTI DI SINI ===
-        // Setelah data selesai disedot, jika user di HP, paksa arahkan ke mainMenu (6 tombol)
+        // Jika user menggunakan HP, paksa arahkan langsung ke mainMenu
         if (window.innerWidth <= 768) {
             tab('mainMenu');
         } else {
             tab('dashboard');
         }
-        // ==============================
 
     } else {
         document.getElementById('authPage').classList.remove('hidden');
@@ -232,53 +309,31 @@ async function checkUserSession() {
 
 checkUserSession();
 
-// ====== LOGIKA PERPINDAHAN TAB HALAMAN (VERSI FIX 100%) ======
+// ====== LOGIKA PERPINDAHAN TAB HALAMAN ======
 function tab(id) { 
-    // 1. Sembunyikan SEMUA elemen ber-class 'page'
     document.querySelectorAll('.page').forEach(x => {
         x.classList.add('hidden');
     }); 
 
-    // 2. Paksa halaman Menu Utama (6 tombol) agar hilang total jika sedang membuka sub-menu
     const mainMenuEl = document.getElementById('mainMenu');
     if (mainMenuEl) {
         if (id === 'mainMenu') {
-            mainMenuEl.style.setProperty('display', 'block', 'important'); // Tampilkan jika Menu Utama dipilih
+            mainMenuEl.style.setProperty('display', 'block', 'important');
         } else {
-            mainMenuEl.style.setProperty('display', 'none', 'important');  // Hilangkan total jika sub-menu lain dipilih
+            mainMenuEl.style.setProperty('display', 'none', 'important');
         }
     }
 
-    // 3. Tampilkan HANYA halaman target yang dipilih (1x klik langsung jalan!)
     const targetPage = document.getElementById(id);
     if (targetPage) {
         targetPage.classList.remove('hidden'); 
     }
 
-    // Jalankan render history jika masuk ke halaman riwayat
     if (id === 'history') {
         renderHistory();
     }
 }
 
-// ====== LOGIKA NAVIGASI MENU UTAMA MOBILE ======
-function bukaSubMenu(idHalaman) {
-    // Jalankan fungsi tab untuk membuka sub-menu dan menginstruksikan menu utama agar bersembunyi
-    tab(idHalaman); 
-    
-    // Munculkan tombol kembali melayang jika diakses lewat layar HP
-    if (window.innerWidth <= 768) {
-        document.getElementById('floatingBackButton').classList.remove('hidden');
-    }
-}
-
-function kembaliKeMenuUtama() {
-    // Kembali menampilkan menu utama dan otomatis menyembunyikan sub-menu aktif sebelumnya
-    tab('mainMenu');
-    document.getElementById('floatingBackButton').classList.add('hidden');
-}
-
-// ====== ENGINE UTAMA: MENGHITUNG SALDO & MODAL DARI LEDGER TRANSACTION ======
 function processLedger() {
     db.crypto = [];
     db.stocks = [];
@@ -341,10 +396,8 @@ function setGoal() {
 
 // ====== CONTROLLER FORM INPUT (INTEGRASI SUPABASE CLOUD) ======
 
-// 1. Fungsi Tambah Aset Crypto ke Cloud Supabase
 async function addCrypto() {
     try {
-        // Ambil sesi user yang sedang login untuk mendapatkan user_id
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) {
             showToast("Anda harus login terlebih dahulu!", "error");
@@ -364,11 +417,10 @@ async function addCrypto() {
 
         showToast("Menyimpan data Crypto ke cloud...", "info");
 
-        // Kirim data langsung ke tabel tb_crypto di Supabase
         const { error } = await supabaseClient
             .from('tb_crypto')
             .insert([{
-                user_id: session.user.id, // Kunci RLS gembok data user
+                user_id: session.user.id,
                 coin_id: coinId.value.toLowerCase(),
                 coin_search: coinSearch ? coinSearch.value : '',
                 quantity: parseFloat(coinQty.value),
@@ -378,13 +430,11 @@ async function addCrypto() {
 
         if (error) throw error;
 
-        // Reset form input di layar setelah berhasil
         if(coinSearch) coinSearch.value = "";
         coinId.value = "";
         coinQty.value = "";
         coinEntry.value = "";
         
-        // Panggil ulang fungsi sinkronisasi agar layar mendownload data terbaru
         await loadUserDataFromServer();
         showToast("Aset Crypto berhasil disimpan ke Cloud!", "success");
 
@@ -394,7 +444,6 @@ async function addCrypto() {
     }
 }
 
-// 2. Fungsi Tambah Aset Saham ke Cloud Supabase
 async function addStock() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -417,7 +466,6 @@ async function addStock() {
 
         showToast("Menyimpan data Saham ke cloud...", "info");
 
-        // Kirim data langsung ke tabel tb_stocks di Supabase
         const { error } = await supabaseClient
             .from('tb_stocks')
             .insert([{
@@ -429,12 +477,10 @@ async function addStock() {
 
         if (error) throw error;
 
-        // Reset form input di layar
         stockTicker.value = "";
         stockQty.value = "";
         stockEntry.value = "";
         
-        // Panggil ulang fungsi sinkronisasi agar layar mendownload data terbaru
         await loadUserDataFromServer();
         showToast("Aset Saham berhasil disimpan ke Cloud!", "success");
 
@@ -580,12 +626,10 @@ async function updatePrices() {
         } catch (e) { console.log("Gagal memuat massal harga crypto"); }
     }
 
-// === KODE FINAL: LOGIKA PENJEMPUTAN HARGA SAHAM MENGGUNAKAN CODETABS PROXY ===
     for (const s of db.stocks) {
         let hargaBerhasilDitemukan = false;
         let urlSaham = 'https://query1.finance.yahoo.com/v8/finance/chart/' + s.ticker;
 
-        // --- BLOK PROXY UTAMA (ALLORIGINS) ---
         if (!hargaBerhasilDitemukan) {
             try {
                 let r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(urlSaham)}`);
@@ -605,14 +649,11 @@ async function updatePrices() {
             }
         }
 
-        // --- BLOK PROXY CADANGAN (CODETABS PROXY) ---
-        // Dieksekusi jika AllOrigins return eror 520/522 atau down
         if (!hargaBerhasilDitemukan) {
             try {
-                // Menggunakan api.codetabs.com yang lebih ramah terhadap request browser langsung
                 let r = await fetch(`https://api.codetabs.com/v1/proxy/?url=${encodeURIComponent(urlSaham)}`);
                 if (r.ok) {
-                    let d = await r.json(); // Codetabs mengembalikan data mentah langsung tanpa properti .contents
+                    let d = await r.json();
                     if (d && d.chart && d.chart.result && d.chart.result[0]) {
                         let meta = d.chart.result[0].meta;
                         s.price = meta.regularMarketPrice || meta.chartPreviousClose || s.price;
@@ -624,7 +665,6 @@ async function updatePrices() {
             }
         }
 
-        // --- PENGAMAN AKHIR (FALLBACK DATA) ---
         if (!hargaBerhasilDitemukan && (!s.price || s.price === 0)) {
             s.price = s.price || 0; 
             console.log(`[Fallback System] Mempertahankan harga terakhir di database untuk ${s.ticker}.`);
@@ -737,66 +777,51 @@ function render() {
         }).join('');
     }
 
-// === 🚪 GERBANG DARURAT (TARUH DI SINI, DI ATAS CASH LIST) ===
-    // Jika user sudah log out (layar login terbuka), langsung STOP fungsi ini biar tidak error!
+    // Jika layar login terminal sedang aktif, batalkan eksekusi kelanjutan render komponen dalam
     const authPage = document.getElementById('authPage');
     if (authPage && !authPage.classList.contains('hidden')) {
         return; 
     }
 
-   // ====================================================================
-// 1. PASANG GERBANG 'try' DI BARIS PALING ATAS (Tepat sebelum cashList)
-// ====================================================================
-try {
+    try {
+        const cashList = document.getElementById('cashList');
+        if (cashList) {
+            cashList.innerHTML = db.cash.map((x, i) => {
+                modal += x.type === 'in' ? x.val : -x.val;
+                return `<div class="item">
+                    ${x.type === 'in' ? '🔵 Modal Masuk' : '🔴 Modal Keluar'} <b>${idr(x.val)}</b>
+                    <button style="width:auto; padding:2px 8px; background:#dc2626; color:white; margin-left:10px;" onclick="del('cash',${i})">Hapus</button>
+                </div>`;
+            }).join('');
+        }
 
-    const cashList = document.getElementById('cashList');
-    if (cashList) {
-        cashList.innerHTML = db.cash.map((x, i) => {
-            modal += x.type === 'in' ? x.val : -x.val;
-            return `<div class="item">
-                ${x.type === 'in' ? '🔵 Modal Masuk' : '🔴 Modal Keluar'} <b>${idr(x.val)}</b>
-                <button style="width:auto; padding:2px 8px; background:#dc2626; color:white; margin-left:10px;" onclick="del('cash',${i})">Hapus</button>
-            </div>`;
-        }).join('');
+        const totalAssetEl = document.getElementById('totalAsset');
+        const netCashEl = document.getElementById('netCash');
+        const goalPctEl = document.getElementById('goalPct');
+        const barEl = document.getElementById('bar');
+
+        let currentAssetVal = totalAssetEl ? parseFloat(totalAssetEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
+        let currentCashVal = netCashEl ? parseFloat(netCashEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
+
+        if (totalAssetEl) animateCount(totalAssetEl, currentAssetVal, total, 1000, true);
+
+        const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
+        if (mobileTotalAssetEl && totalAssetEl) animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
+
+        if (netCashEl) animateCount(netCashEl, currentCashVal, modal, 1000, true);
+
+        let pct = db.goal ? Math.min(100, total / db.goal * 100) : 0;
+        if (goalPctEl) {
+            let currentPctVal = parseFloat(goalPctEl.innerText) || 0;
+            animateCount(goalPctEl, currentPctVal, pct, 1000, false);
+        }
+        if (barEl) barEl.style.width = pct + '%';
+
+        drawCharts(total, alloc);
+
+    } catch (error) {
+        console.error("Sistem mendeteksi error pada kalkulasi:", error.message);
     }
-
-    const totalAssetEl = document.getElementById('totalAsset');
-    const netCashEl = document.getElementById('netCash');
-    const goalPctEl = document.getElementById('goalPct');
-    const barEl = document.getElementById('bar');
-
-    let currentAssetVal = totalAssetEl ? parseFloat(totalAssetEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
-    let currentCashVal = netCashEl ? parseFloat(netCashEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
-
-    if (totalAssetEl) {
-        animateCount(totalAssetEl, currentAssetVal, total, 1000, true);
-    }
-
-    const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
-    if (mobileTotalAssetEl && totalAssetEl) {
-        animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
-    }
-
-    if (netCashEl) {
-        animateCount(netCashEl, currentCashVal, modal, 1000, true);
-    }
-
-    let pct = db.goal ? Math.min(100, total / db.goal * 100) : 0;
-    if (goalPctEl) {
-        let currentPctVal = parseFloat(goalPctEl.innerText) || 0;
-        animateCount(goalPctEl, currentPctVal, pct, 1000, false);
-    }
-    if (barEl) barEl.style.width = pct + '%';
-
-    drawCharts(total, alloc);
-
-// ====================================================================
-// 2. TUTUP DENGAN 'catch' DI BARIS PALING BAWAH (Tepat setelah drawCharts)
-// ====================================================================
-} catch (error) {
-    // Jika ada error internal / gangguan database, aplikasi tidak akan freeze/blank putih
-    console.error("Sistem mendeteksi error pada kalkulasi:", error.message);
-}
 }
 
 function renderHistory() {
@@ -898,8 +923,8 @@ function drawCharts(total, alloc) {
                 db.equity.push(total);
                 db.equityLabels.push(waktuSekarang);
                 if (db.equity.length > 25) {
-                    db.equity.shift();       // Hapus titik ekuitas paling tua (paling kiri)
-                    db.equityLabels.shift(); // Hapus label waktu paling tua (paling kiri)
+                    db.equity.shift();       
+                    db.equityLabels.shift(); 
                 }
                 localStorage.setItem('fosv10', JSON.stringify(db)); 
             }
@@ -922,16 +947,12 @@ function drawCharts(total, alloc) {
             options: {
                 plugins: { legend: { labels: { color: 'white' } } },
                 scales: {
-                    x: { 
-                        ticks: { color: 'white' } 
-                    },
+                    x: { ticks: { color: 'white' } },
                     y: { 
                         ticks: { 
                             color: 'white',
                             stepSize: 500000, 
-                            callback: function(value) {
-                                return value.toLocaleString('id-ID');
-                            }
+                            callback: function(value) { return value.toLocaleString('id-ID'); }
                         } 
                     }
                 }
@@ -942,7 +963,6 @@ function drawCharts(total, alloc) {
 
 // ==================== 📈 LOGIKA SNAPSHOT & GRAFIK EKUITAS ====================
 
-// 1. Fungsi Mengirim Saldo Terkini ke Tabel tb_equity di Supabase
 async function snapshotEquity() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -951,10 +971,7 @@ async function snapshotEquity() {
             return;
         }
 
-        // Hitung total aset saat ini secara real-time dari variabel lokal setelah processLedger
-        // Kita hitung ulang untuk memastikan angkanya paling akurat sebelum dikirim
         let totalCurrentAsset = 0;
-        
         db.crypto.forEach(c => {
             let val = c.qty * (c.price || 0);
             totalCurrentAsset += c.cur === 'usd' ? val * USDIDR : val;
@@ -974,7 +991,6 @@ async function snapshotEquity() {
 
         showToast("Menyimpan snapshot ekuitas ke cloud...", "info");
 
-        // Kirim ke tabel tb_equity yang baru saja kamu buat
         const { error } = await supabaseClient
             .from('tb_equity')
             .insert([{
@@ -984,12 +1000,8 @@ async function snapshotEquity() {
 
         if (error) throw error;
 
-// Bersihkan tracker 30 detikan agar grafik live mulai dari nol lagi
         db.liveTicks = [];
-
         showToast("Snapshot kekayaan berhasil direkam!", "success");
-        
-        // Panggil ulang fungsi penarik data agar grafik langsung ter-update otomatis
         await loadEquityHistory();
 
     } catch (err) {
@@ -998,13 +1010,11 @@ async function snapshotEquity() {
     }
 }
 
-// 2. Fungsi Mengambil Data Riwayat Ekuitas dari Cloud Supabase
 async function loadEquityHistory() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (!session) return;
 
-        // Ambil data riwayat ekuitas diurutkan dari yang paling lama ke paling baru (kronologis)
         const { data, error } = await supabaseClient
             .from('tb_equity')
             .select('total_asset, created_at')
@@ -1013,11 +1023,9 @@ async function loadEquityHistory() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-            // Ekstrak data untuk sumbu Y (angka nominal) dan sumbu X (label tanggal)
             db.equity = data.map(item => Number(item.total_asset));
             db.equityLabels = data.map(item => {
                 let dateObj = new Date(item.created_at);
-                // Format tanggal ringkas (Contoh: 08/06) untuk tampilan mobile yang rapi
                 return dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
             });
         } else {
@@ -1025,7 +1033,6 @@ async function loadEquityHistory() {
             db.equityLabels = [];
         }
 
-        // Gambar ulang chart dengan data terupdate
         updateHistoricalEquityChart();
 
     } catch (err) {
@@ -1033,20 +1040,10 @@ async function loadEquityHistory() {
     }
 }
 
-// Deklarasikan dua variabel global baru di bagian paling atas script.js (dekat variabel chart lainnya)
-let liveEquityChartInstance = null;
-let historicalEquityChartInstance = null;
-
-// Tambahkan inisialisasi array liveTicks di global jika belum ada
-if (!db.liveTicks) db.liveTicks = [];
-
-
-// 1. FUNGSI GRAFIK REAL-TIME (KHUSUS KARTU 2)
 function updateLiveEquityChart() {
     const ctx = document.getElementById('liveEquityCanvas');
     if (!ctx) return;
 
-    // Hitung total aset saat ini secara real-time
     let totalCurrentAsset = 0;
     db.crypto.forEach(c => { totalCurrentAsset += (c.qty * (c.price || 0)) * (c.cur === 'usd' ? USDIDR : 1); });
     db.stocks.forEach(s => { totalCurrentAsset += ((s.qty * 100) * (s.price || 0)) * (!s.ticker.endsWith('.JK') ? USDIDR : 1); });
@@ -1056,7 +1053,6 @@ function updateLiveEquityChart() {
         const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         db.liveTicks.push({ label: waktu, value: totalCurrentAsset });
 
-        // Batasi maksimal 20 titik fluktuasi berjalan hari ini
         if (db.liveTicks.length > 20) {
             db.liveTicks.shift();
         }
@@ -1074,7 +1070,7 @@ function updateLiveEquityChart() {
             datasets: [{
                 label: 'Live IDR',
                 data: dataPoints,
-                borderColor: '#f59e0b', // Warna Orange Emas untuk penanda Live kilat
+                borderColor: '#f59e0b', 
                 backgroundColor: 'rgba(245, 158, 11, 0.05)',
                 borderWidth: 2.5,
                 fill: true,
@@ -1094,8 +1090,6 @@ function updateLiveEquityChart() {
     });
 }
 
-
-// 2. FUNGSI GRAFIK HISTORIS SUPABASE (KHUSUS KARTU 3)
 function updateHistoricalEquityChart() {
     const ctx = document.getElementById('historicalEquityCanvas');
     if (!ctx) return;
@@ -1112,11 +1106,11 @@ function updateHistoricalEquityChart() {
             datasets: [{
                 label: 'Jurnal Kekayaan (IDR)',
                 data: dataPoints,
-                borderColor: '#3b82f6', // Warna Biru untuk data kokoh historis
+                borderColor: '#3b82f6', 
                 backgroundColor: 'rgba(59, 130, 246, 0.05)',
                 borderWidth: 3,
                 fill: true,
-                tension: 0.1, // Garis lebih tegas/kaku menandakan kestabilan data harian
+                tension: 0.1, 
                 pointBackgroundColor: '#2563eb',
                 pointRadius: 4
             }]
@@ -1133,73 +1127,46 @@ function updateHistoricalEquityChart() {
     });
 }
 
-// === TAHAP 3: OPTIMASI TIMER BACKGROUND REFRESH CERDAS ===
+// ==================== ⏳ TIMERS BACKGROUND SYSTEM ====================
 
-// 1. LOOP UTAMA: Update Harga Pasar & Grafik Live (Setiap 30 Detik)
 setInterval(async () => {
-    // Cek apakah tab browser sedang aktif dibuka oleh user (Menghemat RAM & Internet)
-    if (document.hidden) {
-        console.log("[Timer Paused] Menghemat resource karena tab sedang tidak aktif.");
-        return; 
-    }
+    if (document.hidden) return; 
 
-    // Pastikan user sudah melewati halaman login/masuk ke dashboard
     const authPage = document.getElementById('authPage');
-    if (authPage && !authPage.classList.contains('hidden')) {
-        console.log("[Timer Paused] Menghentikan refresh karena user belum login.");
-        return;
-    }
+    if (authPage && !authPage.classList.contains('hidden')) return;
 
-    console.log("Memulai pembaruan harga otomatis & grafik live...");
-    
-    // Pastikan user sedang dalam kondisi online/terhubung internet
     if (navigator.onLine) {
         try {
-            await updatePrices();     // Ambil harga terbaru dari internet
-            render();                 // Gambar ulang angka saldo baru ke layar
-            
-            // 🟢 KUNCI DI SINI: Panggil fungsi grafik Live baru yang sudah kita pisah tadi
+            await updatePrices();     
+            render();                 
             updateLiveEquityChart();  
-            
-            console.log("Layar dan Grafik Live berhasil diperbarui!");
         } catch (error) {
             console.log("[Timer Catch] Pembaruan terjeda akibat kendala jaringan:", error.message);
         }
-    } else {
-        console.log("[Timer Offline] Koneksi internet terputus, menunda pembaruan.");
     }
-}, 30000); // Berjalan stabil setiap 30 detik 
+}, 30000); 
 
-
-// 2. LOOP KURS: Jalankan pembaruan kurs USD (Setiap 1 Menit)
 setInterval(async () => {
     if (!document.hidden && navigator.onLine) {
         const authPage = document.getElementById('authPage');
         if (authPage && authPage.classList.contains('hidden')) {
             await fx();
             render();
-            console.log("[FX Update] Kurs USD/IDR berhasil diperbarui.");
         }
     }
 }, 60000);
 
 async function init() {
     try {
-        console.log("Menginisialisasi aplikasi...");
-        
-        // 1. Ambil data user dari server terlebih dahulu (Prioritas Utama)
         await loadUserDataFromServer(); 
         render();
 
-        // 2. TAHAP 1: Berikan jeda 2 detik sebelum menembak API harga saham live
-        // Ini agar browser tidak overload di detik pertama refresh
         setTimeout(async () => {
             if (navigator.onLine) {
-                console.log("[Init Delay] Mengambil data harga live setelah jeda pengaman...");
                 await updatePrices();
                 render();
             }
-        }, 2000); // Jeda 2000 milidetik (2 detik)
+        }, 2000); 
 
     } catch (error) {
         console.error("Gagal melakukan inisialisasi aplikasi:", error);
@@ -1233,69 +1200,48 @@ function showToast(message, type = "info") {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
-    // Batasi maksimal hanya 3 toast yang boleh tampil bersamaan di layar HP
     if (container.children.length >= 3) {
-        // Hapus toast paling atas (paling tua) secara paksa untuk memberi ruang
-        const oldestToast = container.children[0];
-        oldestToast.remove();
+        container.children[0].remove();
     }
 
-    // Buat elemen toast baru
     const toast = document.createElement('div');
     toast.className = `custom-toast ${type}`;
     
-    // Beri icon estetik pelengkap berdasarkan tipe
     let icon = "💡";
     if (type === "success") icon = "✅";
     if (type === "warning") icon = "⚠️";
     if (type === "error") icon = "❌";
 
     toast.innerHTML = `<span style="margin-right: 8px;">${icon}</span> ${message}`;
-
-    // Masukkan ke dalam container
     container.appendChild(toast);
 
-    // Otomatis picu animasi keluar setelah 3 detik
     setTimeout(() => {
         toast.classList.add('slide-out');
-        // Tunggu animasi slide-out selesai baru hapus elemen dari HTML
-        toast.addEventListener('animationend', () => {
-            toast.remove();
-        });
+        toast.addEventListener('animationend', () => { toast.remove(); });
     }, 3000);
 }
 
-// Fungsi untuk membuka sub-menu dari menu utama HP
 function bukaSubMenu(idHalaman) {
-    tab(idHalaman); // Memanggil fungsi tab asli bawaan kodinganmu
-    
-    // Jika diakses lewat HP, munculkan tombol back melayang
+    tab(idHalaman); 
     if (window.innerWidth <= 768) {
         document.getElementById('floatingBackButton').classList.remove('hidden');
     }
 }
 
-// Fungsi untuk kembali ke menu utama kotak-kotak di HP
 function kembaliKeMenuUtama() {
     tab('mainMenu');
     document.getElementById('floatingBackButton').classList.add('hidden');
 }
 
-// ====== FUNGSI LOG OUT / KELUAR AKUN (VERSI ANTI-ERROR) ======
 async function handleLogout() {
     const konfirmasi = confirm("Apakah kamu yakin ingin keluar dari aplikasi Financial OS?");
     if (!konfirmasi) return;
 
     try {
-        // 1. Jalankan logout di Supabase terlebih dahulu
         const { error } = await supabaseClient.auth.signOut();
         if (error) throw error;
 
-        // 2. Berikan notifikasi sukses menggunakan alert bawaan browser agar sinkron
         alert("Berhasil keluar akun. Sampai jumpa kembali!");
-        
-        // 3. AMUNISI PAMUNGKAS: Muat ulang halaman secara penuh untuk membersihkan cache & memori
-        // Ini akan otomatis mengembalikan user ke halaman login (authPage) secara bersih tanpa error!
         window.location.reload();
         
     } catch (error) {
