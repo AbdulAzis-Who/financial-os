@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial OS V10 - Fixed</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- Menggunakan cache busting agar perubahan CSS langsung terdeteksi -->
+    <link rel="stylesheet" href="style.css?v=1.0.1">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -50,70 +51,94 @@
 
     <div class="sidebar">
         <h2>Financial OS V10</h2>
-        <button onclick="bukaSubMenu('dashboard')">Dashboard</button>
-        <button onclick="bukaSubMenu('crypto')">Crypto</button>
-        <button onclick="bukaSubMenu('stocks')">Saham</button>
-        <button onclick="bukaSubMenu('metals')">Logam Mulia</button>
-        <button onclick="bukaSubMenu('cash')">Modal</button>
-        <button onclick="bukaSubMenu('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);">📜 Riwayat</button>
+        <button onclick="tab('dashboard')">Dashboard</button>
+        <button onclick="tab('crypto')">Crypto</button>
+        <button onclick="tab('stocks')">Saham</button>
+        <button onclick="tab('metals')">Logam Mulia</button>
+        <button onclick="tab('cash')">Modal</button>
+        <button onclick="tab('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6);">📜 Riwayat</button>
     </div>
 
     <div id="mainMenu" class="page mobile-menu-only hidden">
         <h2 class="menu-title">Financial OS V10</h2>
         
-        <div class="mobile-summary-card">
+        <!-- Efek kaca premium pada ringkasan mobile -->
+        <div class="mobile-summary-card asset-card-premium">
             <small>Total Pantauan Asset (Real-time)</small>
             <h1 id="mobileTotalAsset">Rp0</h1>
         </div>
 
-        <div class="menu-grid">
-            <div class="menu-box" onclick="bukaSubMenu('dashboard')"><span class="menu-icon">📊</span> Dashboard</div>
-            <div class="menu-box" onclick="bukaSubMenu('crypto')"><span class="menu-icon">🪙</span> Crypto</div>
-            <div class="menu-box" onclick="bukaSubMenu('stocks')"><span class="menu-icon">📈</span> Saham</div>
-            <div class="menu-box" onclick="bukaSubMenu('metals')"><span class="menu-icon">✨</span> Logam Mulia</div>
-            <div class="menu-box" onclick="bukaSubMenu('cash')"><span class="menu-icon">💰</span> Modal</div>
-            <div class="menu-box" onclick="bukaSubMenu('history')" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white;"><span class="menu-icon">📜</span> Riwayat</div>
+        <!-- 6 Menu Utama Finansial (Pas, Simetris 3x2) -->
+        <div class="grid-menu-premium">
+            <div class="menu-tile" onclick="bukaSubMenu('dashboard')">📊<br>Dashboard</div>
+            <div class="menu-tile" onclick="bukaSubMenu('crypto')">🪙<br>Crypto</div>
+            <div class="menu-tile" onclick="bukaSubMenu('stocks')">📈<br>Saham</div>
+            <div class="menu-tile" onclick="bukaSubMenu('metals')">✨<br>Logam</div>
+            <div class="menu-tile" onclick="bukaSubMenu('cash')">💵<br>Cash</div>
+            <div class="menu-tile" onclick="bukaSubMenu('history')">📜<br>Riwayat</div>
         </div>
 
-        <div style="text-align: center; margin-top: 30px; padding: 0 10px;">
-            <button onclick="handleLogout()" class="btn-logout-mobile">🚪 Keluar dari Aplikasi</button>
+        <!-- Tombol Keluar Terpisah di Bawah (Desain Premium Lebar) -->
+        <div style="margin-top: 20px; padding: 0 8px;">
+            <div class="menu-tile" onclick="handleLogout()" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-color: rgba(255, 56, 96, 0.3); background: rgba(255, 56, 96, 0.05);">
+                🚪 <span style="font-weight: 600; color: #ff3860;">Keluar dari Aplikasi</span>
+            </div>
         </div>
     </div>
 
+    <!-- Tombol kembali yang otomatis memicu navigasi balik ke menu utama -->
     <button id="floatingBackButton" class="hidden" onclick="kembaliKeMenuUtama()">← Kembali ke Menu</button>
 
     <div class="main">
-        <section id="dashboard" class="page hidden">
+        <!-- Semua section mengadopsi kelas page-transition untuk animasi meluncur -->
+        <section id="dashboard" class="page page-transition hidden">
+            <!-- Penggabungan kelas asset-card-premium untuk efek Glassmorphism -->
             <div class="cards">
-                <div class="card"><small>Total Asset</small><h2 id="totalAsset">Rp0</h2></div>
-                <div class="card"><small>Target</small><h2 id="goalPct">0%</h2></div>
-                <div class="card"><small>Modal Bersih</small><h2 id="netCash">Rp0</h2></div>
+                <div class="card asset-card-premium"><small>Total Asset</small><h2 id="totalAsset">Rp0</h2></div>
+                <div class="card asset-card-premium"><small>Target</small><h2 id="goalPct">0%</h2></div>
+                <div class="card asset-card-premium"><small>Modal Bersih</small><h2 id="netCash">Rp0</h2></div>
             </div>
 
-            <div class="card">
+            <div class="card asset-card-premium">
                 <input id="goalInput" type="number" placeholder="Target kekayaan (IDR)">
                 <button onclick="setGoal()">Set Target</button>
                 <div class="progress"><div id="bar"></div></div>
             </div>
 
-            <div class="grid">
-                <div class="card">
-                    <h3>Alokasi Aset</h3>
-                    <canvas id="pie"></canvas>
-                </div>
-                <div class="card">
-                    <h3>Pertumbuhan Ekuitas</h3>
-                    <canvas id="equity"></canvas>
-                    <div style="text-align: center; margin-top: 10px;">
-                        <button onclick="snapshotEquity()" style="width: auto; padding: 6px 15px; font-size: 12px; background: #3b82f6; color: white;">Simpan Snapshot Harian</button>
+<div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                
+                <div class="card asset-card-premium" style="display: flex; flex-direction: column; height: 360px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #9ca3af;">📊 Alokasi Aset</h3>
+                    <div style="flex-grow: 1; position: relative; height: 260px; width: 100%;">
+                        <canvas id="pie"></canvas>
                     </div>
                 </div>
+
+                <div class="card asset-card-premium" style="display: flex; flex-direction: column; height: 360px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #f59e0b;">⚡ Live Tracker (Hari Ini)</h3>
+                    <div style="flex-grow: 1; position: relative; height: 260px; width: 100%;">
+                        <canvas id="liveEquityCanvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="card asset-card-premium" style="display: flex; flex-direction: column; height: 360px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; font-size: 15px; color: #3b82f6;">📈 Pertumbuhan Ekuitas</h3>
+                        <button onclick="snapshotEquity()" style="width: auto; padding: 5px 10px; font-size: 10px; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            📸 Snapshot
+                        </button>
+                    </div>
+                    <div style="flex-grow: 1; position: relative; height: 260px; width: 100%;">
+                        <canvas id="historicalEquityCanvas"></canvas>
+                    </div>
+                </div>
+
             </div>
         </section>
 
-        <section id="crypto" class="page hidden">
+        <section id="crypto" class="page page-transition hidden">
             <h3>Manajemen Aset Crypto</h3>
-            <div class="card-form">
+            <div class="card-form asset-card-premium">
                 <input id="coinSearch" placeholder="Cari koin (cth: bitcoin, solana)...">
                 <div id="coinSuggest" class="suggestions"></div>
                 <input id="coinId" placeholder="Coin ID (otomatis)" readonly>
@@ -128,9 +153,9 @@
             <div id="cryptoList" class="asset-list"></div>
         </section>
 
-        <section id="stocks" class="page hidden">
+        <section id="stocks" class="page page-transition hidden">
             <h3>Manajemen Aset Saham IDX / US</h3>
-            <div class="card-form">
+            <div class="card-form asset-card-premium">
                 <input id="stockTicker" placeholder="Ticker Saham (cth: BBRI.JK, AAPL)">
                 <input id="stockQty" type="number" step="any" placeholder="Jumlah Lot (1 Lot = 100 lbr)">
                 <input id="stockEntry" type="number" step="any" placeholder="Harga beli per lembar">
@@ -139,9 +164,9 @@
             <div id="stockList" class="asset-list"></div>
         </section>
 
-        <section id="metals" class="page hidden">
+        <section id="metals" class="page page-transition hidden">
             <h3>Manajemen Aset Logam Mulia</h3>
-            <div class="card-form">
+            <div class="card-form asset-card-premium">
                 <select id="metalType">
                     <option value="gold">Emas (Gold)</option>
                     <option value="silver">Perak (Silver)</option>
@@ -153,9 +178,9 @@
             <div id="metalList" class="asset-list" style="margin-top: 20px;"></div>
         </section>
 
-        <section id="cash" class="page hidden">
+        <section id="cash" class="page page-transition hidden">
             <h3>Pencatatan Aliran Modal Awal</h3>
-            <div class="card-form">
+            <div class="card-form asset-card-premium">
                 <select id="cashType">
                     <option value="in">Modal Masuk (Deposit)</option>
                     <option value="out">Modal Keluar (Withdraw)</option>
@@ -166,9 +191,9 @@
             <div id="cashList" class="asset-list"></div>
         </section>
 
-        <section id="history" class="page hidden">
+        <section id="history" class="page page-transition hidden">
             <h3>Jurnal & Riwayat Transaksi Global</h3>
-            <div class="card" style="overflow-x: auto; margin-top: 20px; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(10px);">
+            <div class="card" style="overflow-x: auto; margin-top: 20px; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(255,255,255,0.1); color: #9ca3af;">
@@ -188,7 +213,7 @@
         </section>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=1.0.1"></script>
     <div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
 </body>
 </html>

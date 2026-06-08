@@ -127,6 +127,7 @@ async function loadUserDataFromServer() {
         await updatePrices();
         render();
         showToast("Data cloud berhasil disinkronkan!", "success");
+        await loadEquityHistory();
 
     } catch (err) {
         // Meredam eror merah CORS (null) agar tidak mengotori console saat internet berkedip/RTO
@@ -743,6 +744,11 @@ function render() {
         return; 
     }
 
+   // ====================================================================
+// 1. PASANG GERBANG 'try' DI BARIS PALING ATAS (Tepat sebelum cashList)
+// ====================================================================
+try {
+
     const cashList = document.getElementById('cashList');
     if (cashList) {
         cashList.innerHTML = db.cash.map((x, i) => {
@@ -762,18 +768,15 @@ function render() {
     let currentAssetVal = totalAssetEl ? parseFloat(totalAssetEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
     let currentCashVal = netCashEl ? parseFloat(netCashEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0 : 0;
 
-    // 1. PERUBAHAN: Sekarang dibungkus 'if' agar tidak error saat log out
     if (totalAssetEl) {
         animateCount(totalAssetEl, currentAssetVal, total, 1000, true);
     }
 
-    // === 💎 TAMBAHAN SAKTI DENGAN PENGAMAN (SUDAH BENAR) ===
     const mobileTotalAssetEl = document.getElementById('mobileTotalAsset');
     if (mobileTotalAssetEl && totalAssetEl) {
         animateCount(mobileTotalAssetEl, currentAssetVal, total, 1000, true);
     }
 
-    // 2. PERUBAHAN: Sekarang dibungkus 'if' agar tidak error saat log out
     if (netCashEl) {
         animateCount(netCashEl, currentCashVal, modal, 1000, true);
     }
@@ -786,6 +789,14 @@ function render() {
     if (barEl) barEl.style.width = pct + '%';
 
     drawCharts(total, alloc);
+
+// ====================================================================
+// 2. TUTUP DENGAN 'catch' DI BARIS PALING BAWAH (Tepat setelah drawCharts)
+// ====================================================================
+} catch (error) {
+    // Jika ada error internal / gangguan database, aplikasi tidak akan freeze/blank putih
+    console.error("Sistem mendeteksi error pada kalkulasi:", error.message);
+}
 }
 
 function renderHistory() {
@@ -929,74 +940,247 @@ function drawCharts(total, alloc) {
     }
 }
 
-// 🟢 FUNGSI UNTUK MENYIMPAN SNAPSHOT EKUITAS HARIAN MANUAl
-function snapshotEquity() {
-    // 1. Ambil nilai total aset saat ini yang ada di layar
-    const totalAssetEl = document.getElementById('totalAsset');
-    if (!totalAssetEl) return;
-    
-    // Konversi teks Rp dari layar menjadi angka murni JavaScript
-    let totalSekarang = parseFloat(totalAssetEl.innerText.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
-    
-    if (totalSekarang <= 0) {
-        showToast("Gagal mengambil snapshot! Saldo masih Rp0 atau belum termuat.", "error");
-        return;
+// ==================== 📈 LOGIKA SNAPSHOT & GRAFIK EKUITAS ====================
+
+// 1. Fungsi Mengirim Saldo Terkini ke Tabel tb_equity di Supabase
+async function snapshotEquity() {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            showToast("Anda harus login terlebih dahulu!", "error");
+            return;
+        }
+
+        // Hitung total aset saat ini secara real-time dari variabel lokal setelah processLedger
+        // Kita hitung ulang untuk memastikan angkanya paling akurat sebelum dikirim
+        let totalCurrentAsset = 0;
+        
+        db.crypto.forEach(c => {
+            let val = c.qty * (c.price || 0);
+            totalCurrentAsset += c.cur === 'usd' ? val * USDIDR : val;
+        });
+        db.stocks.forEach(s => {
+            let val = (s.qty * 100) * (s.price || 0);
+            totalCurrentAsset += !s.ticker.endsWith('.JK') ? val * USDIDR : val;
+        });
+        db.metals.forEach(m => {
+            totalCurrentAsset += m.gram * (m.price || 0);
+        });
+
+        if (totalCurrentAsset <= 0) {
+            showToast("Total aset Rp0, tidak ada data untuk disimpan.", "warning");
+            return;
+        }
+
+        showToast("Menyimpan snapshot ekuitas ke cloud...", "info");
+
+        // Kirim ke tabel tb_equity yang baru saja kamu buat
+        const { error } = await supabaseClient
+            .from('tb_equity')
+            .insert([{
+                user_id: session.user.id,
+                total_asset: totalCurrentAsset
+            }]);
+
+        if (error) throw error;
+
+// Bersihkan tracker 30 detikan agar grafik live mulai dari nol lagi
+        db.liveTicks = [];
+
+        showToast("Snapshot kekayaan berhasil direkam!", "success");
+        
+        // Panggil ulang fungsi penarik data agar grafik langsung ter-update otomatis
+        await loadEquityHistory();
+
+    } catch (err) {
+        console.error("Gagal menyimpan snapshot ekuitas:", err);
+        showToast("Gagal menyimpan snapshot: " + err.message, "error");
+    }
+}
+
+// 2. Fungsi Mengambil Data Riwayat Ekuitas dari Cloud Supabase
+async function loadEquityHistory() {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) return;
+
+        // Ambil data riwayat ekuitas diurutkan dari yang paling lama ke paling baru (kronologis)
+        const { data, error } = await supabaseClient
+            .from('tb_equity')
+            .select('total_asset, created_at')
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            // Ekstrak data untuk sumbu Y (angka nominal) dan sumbu X (label tanggal)
+            db.equity = data.map(item => Number(item.total_asset));
+            db.equityLabels = data.map(item => {
+                let dateObj = new Date(item.created_at);
+                // Format tanggal ringkas (Contoh: 08/06) untuk tampilan mobile yang rapi
+                return dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+            });
+        } else {
+            db.equity = [];
+            db.equityLabels = [];
+        }
+
+        // Gambar ulang chart dengan data terupdate
+        updateHistoricalEquityChart();
+
+    } catch (err) {
+        console.log("[Equity History Fetch] Gagal memuat tren grafik:", err.message);
+    }
+}
+
+// Deklarasikan dua variabel global baru di bagian paling atas script.js (dekat variabel chart lainnya)
+let liveEquityChartInstance = null;
+let historicalEquityChartInstance = null;
+
+// Tambahkan inisialisasi array liveTicks di global jika belum ada
+if (!db.liveTicks) db.liveTicks = [];
+
+
+// 1. FUNGSI GRAFIK REAL-TIME (KHUSUS KARTU 2)
+function updateLiveEquityChart() {
+    const ctx = document.getElementById('liveEquityCanvas');
+    if (!ctx) return;
+
+    // Hitung total aset saat ini secara real-time
+    let totalCurrentAsset = 0;
+    db.crypto.forEach(c => { totalCurrentAsset += (c.qty * (c.price || 0)) * (c.cur === 'usd' ? USDIDR : 1); });
+    db.stocks.forEach(s => { totalCurrentAsset += ((s.qty * 100) * (s.price || 0)) * (!s.ticker.endsWith('.JK') ? USDIDR : 1); });
+    db.metals.forEach(m => { totalCurrentAsset += m.gram * (m.price || 0); });
+
+    if (totalCurrentAsset > 0) {
+        const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        db.liveTicks.push({ label: waktu, value: totalCurrentAsset });
+
+        // Batasi maksimal 20 titik fluktuasi berjalan hari ini
+        if (db.liveTicks.length > 20) {
+            db.liveTicks.shift();
+        }
     }
 
-    // 2. Ambil tanggal hari ini (Format: DD/MM/YYYY)
-    let tanggalHariIni = new Date().toLocaleDateString('id-ID');
+    const labels = db.liveTicks.map(t => t.label).length > 0 ? db.liveTicks.map(t => t.label) : ['Menunggu Data'];
+    const dataPoints = db.liveTicks.map(t => t.value).length > 0 ? db.liveTicks.map(t => t.value) : [0];
 
-    if (!db.equity) db.equity = [];
-    if (!db.equityLabels) db.equityLabels = [];
+    if (liveEquityChartInstance) { liveEquityChartInstance.destroy(); }
 
-    // 3. Cek apakah hari ini sudah pernah simpan snapshot atau belum
-    let indeksHariIni = db.equityLabels.indexOf(tanggalHariIni);
+    liveEquityChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Live IDR',
+                data: dataPoints,
+                borderColor: '#f59e0b', // Warna Orange Emas untuk penanda Live kilat
+                backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#9ca3af', font: { size: 9 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#9ca3af', font: { size: 9 } } }
+            }
+        }
+    });
+}
 
-    if (indeksHariIni !== -1) {
-        // Jika hari ini sudah pernah klik, perbarui saja angkanya dengan yang paling baru
-        db.equity[indeksHariIni] = totalSekarang;
-        showToast("Snapshot hari ini berhasil diperbarui!", "success");
-    } else {
-        // Jika benar-benar hari baru, tambahkan titik koordinat baru di grafik
-        db.equity.push(totalSekarang);
-        db.equityLabels.push(tanggalHariIni);
-        showToast("Snapshot harian berhasil disimpan secara permanen!", "success");
-    }
 
-    // 4. Simpan ke LocalStorage dan gambar ulang grafiknya
-    localStorage.setItem('fosv10', JSON.stringify(db));
-    render();
+// 2. FUNGSI GRAFIK HISTORIS SUPABASE (KHUSUS KARTU 3)
+function updateHistoricalEquityChart() {
+    const ctx = document.getElementById('historicalEquityCanvas');
+    if (!ctx) return;
+
+    const labels = db.equityLabels.length > 0 ? db.equityLabels : ['Belum Ada Snapshot'];
+    const dataPoints = db.equity.length > 0 ? db.equity : [0];
+
+    if (historicalEquityChartInstance) { historicalEquityChartInstance.destroy(); }
+
+    historicalEquityChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Jurnal Kekayaan (IDR)',
+                data: dataPoints,
+                borderColor: '#3b82f6', // Warna Biru untuk data kokoh historis
+                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.1, // Garis lebih tegas/kaku menandakan kestabilan data harian
+                pointBackgroundColor: '#2563eb',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#9ca3af' } },
+                y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#9ca3af' } }
+            }
+        }
+    });
 }
 
 // === TAHAP 3: OPTIMASI TIMER BACKGROUND REFRESH CERDAS ===
+
+// 1. LOOP UTAMA: Update Harga Pasar & Grafik Live (Setiap 30 Detik)
 setInterval(async () => {
-    // Cek apakah tab browser sedang aktif dibuka oleh user
-    // Jika user sedang membuka tab lain, hentikan request sementara (menghemat RAM & internet)
+    // Cek apakah tab browser sedang aktif dibuka oleh user (Menghemat RAM & Internet)
     if (document.hidden) {
         console.log("[Timer Paused] Menghemat resource karena tab sedang tidak aktif.");
         return; 
     }
 
-    console.log("Memulai pembaruan harga otomatis di latar belakang...");
+    // Pastikan user sudah melewati halaman login/masuk ke dashboard
+    const authPage = document.getElementById('authPage');
+    if (authPage && !authPage.classList.contains('hidden')) {
+        console.log("[Timer Paused] Menghentikan refresh karena user belum login.");
+        return;
+    }
+
+    console.log("Memulai pembaruan harga otomatis & grafik live...");
     
     // Pastikan user sedang dalam kondisi online/terhubung internet
     if (navigator.onLine) {
         try {
-            await updatePrices(); // Ambil harga terbaru dari internet (dengan dual proxy Tahap 2)
-            render();             // Gambar ulang angka baru ke layar secara otomatis
-            console.log("Layar berhasil diperbarui secara otomatis!");
+            await updatePrices();     // Ambil harga terbaru dari internet
+            render();                 // Gambar ulang angka saldo baru ke layar
+            
+            // 🟢 KUNCI DI SINI: Panggil fungsi grafik Live baru yang sudah kita pisah tadi
+            updateLiveEquityChart();  
+            
+            console.log("Layar dan Grafik Live berhasil diperbarui!");
         } catch (error) {
-            console.log("[Timer Catch] Pembaruan terjeda akibat kendala jaringan.");
+            console.log("[Timer Catch] Pembaruan terjeda akibat kendala jaringan:", error.message);
         }
     } else {
         console.log("[Timer Offline] Koneksi internet terputus, menunda pembaruan.");
     }
 }, 30000); // Berjalan stabil setiap 30 detik 
 
-// Jalankan pembaruan kurs USD setiap 1 menit
+
+// 2. LOOP KURS: Jalankan pembaruan kurs USD (Setiap 1 Menit)
 setInterval(async () => {
-    await fx();
-    render();
+    if (!document.hidden && navigator.onLine) {
+        const authPage = document.getElementById('authPage');
+        if (authPage && authPage.classList.contains('hidden')) {
+            await fx();
+            render();
+            console.log("[FX Update] Kurs USD/IDR berhasil diperbarui.");
+        }
+    }
 }, 60000);
 
 async function init() {
@@ -1044,21 +1228,40 @@ function animateCount(element, start, end, duration, isCurrency = true) {
     requestAnimationFrame(animation);
 }
 
-function showToast(message, type = 'success') {
+// ==================== 🍞 LOGIKA SMART TOAST PREMIUM ====================
+function showToast(message, type = "info") {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    
-    let icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-    toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    // Batasi maksimal hanya 3 toast yang boleh tampil bersamaan di layar HP
+    if (container.children.length >= 3) {
+        // Hapus toast paling atas (paling tua) secara paksa untuk memberi ruang
+        const oldestToast = container.children[0];
+        oldestToast.remove();
+    }
 
+    // Buat elemen toast baru
+    const toast = document.createElement('div');
+    toast.className = `custom-toast ${type}`;
+    
+    // Beri icon estetik pelengkap berdasarkan tipe
+    let icon = "💡";
+    if (type === "success") icon = "✅";
+    if (type === "warning") icon = "⚠️";
+    if (type === "error") icon = "❌";
+
+    toast.innerHTML = `<span style="margin-right: 8px;">${icon}</span> ${message}`;
+
+    // Masukkan ke dalam container
     container.appendChild(toast);
 
+    // Otomatis picu animasi keluar setelah 3 detik
     setTimeout(() => {
-        toast.classList.add('toast-fade-out');
-        setTimeout(() => { toast.remove(); }, 300);
+        toast.classList.add('slide-out');
+        // Tunggu animasi slide-out selesai baru hapus elemen dari HTML
+        toast.addEventListener('animationend', () => {
+            toast.remove();
+        });
     }, 3000);
 }
 

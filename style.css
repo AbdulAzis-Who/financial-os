@@ -1,3 +1,23 @@
+:root {
+    --bg-main: #0b0f19;      /* Warna luar angkasa dalam (OLED friendly) */
+    --bg-card: rgba(20, 30, 48, 0.65); /* Dasar kartu kaca transparan */
+    --border-card: rgba(255, 255, 255, 0.08); /* Garis tepi kaca super tipis */
+    --accent-neon: #00f2fe;  /* Cyan neon untuk tombol utama & total aset */
+    --accent-green: #05f396; /* Hijau emerald untuk profit/modal masuk */
+    --accent-red: #ff3860;   /* Merah menyala untuk hapus/modal keluar */
+    --text-primary: #f3f4f6; /* Putih bersih */
+    --text-muted: #9ca3af;   /* Abu-abu elegan untuk sub-teks */
+}
+
+/* Base Body Premium Setup */
+body {
+    background: radial-gradient(circle at top right, #1a233a, var(--bg-main));
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
 body{margin:0;background:#08111f;color:white;font-family:Arial,sans-serif;display:flex}
 .sidebar{width:220px;background:#111827;padding:20px;min-height:100vh;box-sizing:border-box}
 .sidebar h2{font-size:18px;margin-bottom:25px;color:#3b82f6;text-align:center}
@@ -91,41 +111,60 @@ input:focus,select:focus{border-color:#3b82f6;outline:none}
     .sidebar{width:100%;min-height:auto}
     .main{max-width:100%}
 }
-/* Desain Kartu Notifikasi Toast Glassmorphism */
-.toast {
-    background: rgba(17, 24, 39, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: bold;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
+/* Container Utama Toast */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 10px;
-    min-width: 200px;
-    /* Animasi muncul dari kanan ke kiri */
-    animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    pointer-events: none; /* Biar tidak menghalangi klik tombol di belakangnya */
+    max-width: 320px;
+    width: calc(100% - 40px);
+}
+
+/* Base Style Toast Premium (Glassmorphism) */
+.custom-toast {
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-left: 4px solid #3b82f6;
+    color: #ffffff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    pointer-events: auto; /* Tombol toast tetap bisa interaktif */
+    
+    /* Animasi Masuk */
+    animation: slideInToast 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     transition: all 0.3s ease;
 }
 
-/* Variasi Warna Toast */
-.toast-success { border-left: 4px solid #22c55e; }
-.toast-error { border-left: 4px solid #ef4444; }
-.toast-info { border-left: 4px solid #3b82f6; }
+/* Variasi Warna Berdasarkan Tipe */
+.custom-toast.success { border-left-color: #10b981; } /* Hijau */
+.custom-toast.info { border-left-color: #3b82f6; }    /* Biru */
+.custom-toast.warning { border-left-color: #f59e0b; } /* Kuning */
+.custom-toast.error { border-left-color: #ef4444; }   /* Merah */
 
-/* Animasi Slide-In */
-@keyframes slideIn {
-    from { transform: translateX(120%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+/* Animasi Slide-Out saat Terhapus */
+.custom-toast.slide-out {
+    animation: slideOutToast 0.3s ease forwards;
 }
 
-/* Animasi Keluar (Pudar) */
-.toast-fade-out {
-    opacity: 0;
-    transform: translateY(-10px);
+/* Keyframes Animasi */
+@keyframes slideInToast {
+    from { opacity: 0; transform: translateY(20px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideOutToast {
+    from { opacity: 1; transform: translateX(0) scale(1); }
+    to { opacity: 0; transform: translateX(50px) scale(0.8); margin-top: -50px; padding-top: 0; padding-bottom: 0; }
 }
 
 /* ==================== GAYA HALAMAN LOGIN & REGISTER GLOBAL ==================== */
@@ -331,4 +370,86 @@ input:focus,select:focus{border-color:#3b82f6;outline:none}
 .btn-logout-mobile:active {
     background: #ef4444;
     color: white;
+}
+
+/* Efek Kaca Premium (Glassmorphism) untuk Kartu Aset */
+.asset-card-premium {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-card);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efek Cahaya Berpendar di Belakang Kartu */
+.asset-card-premium::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(0,242,254,0.1) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+/* Rombak 6 Tombol Grid Menjadi Smart Tiles */
+.grid-menu-premium {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Tampilan 3 kolom rapi di HP */
+    gap: 16px;
+    padding: 8px;
+}
+
+.menu-tile {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 20px 12px;
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efek membal elastis */
+    cursor: pointer;
+}
+
+/* Efek Sentuhan/Hover Ekstrem saat Tombol Ditekan */
+.menu-tile:active, .menu-tile:hover {
+    transform: scale(0.92); /* Efek haptic mengecil saat ditekan jari */
+    background: rgba(0, 242, 254, 0.1);
+    border-color: var(--accent-neon);
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.2);
+}
+
+/* Efek Masuk Sub-Menu (Slide Up + Fade In) */
+.page-transition {
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(30px); /* Muncul meluncur dari bawah */
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Pemicu darurat agar halaman yang aktif di dalam kontainer .main dipaksa muncul di mobile */
+@media (max-width: 768px) {
+    .main {
+        display: block !important;
+        padding: 20px 10px !important;
+    }
+    .main .page.hidden {
+        display: none !important;
+    }
+    .main .page:not(.hidden) {
+        display: block !important;
+    }
 }
